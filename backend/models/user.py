@@ -1,0 +1,7 @@
+CREATE TABLE user(
+    id SERIAL PRIMARY KEY,
+    name VRCHAR(100),
+    email VARCHAR(100),
+    PASSWORD VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW(),
+);
