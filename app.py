@@ -384,6 +384,16 @@ def run_pipeline(file_path: str, job_description: str):
     # Display
     display_results(info, normalized_skills, embedding_score, llm_score, final_score, llm_eval)
 
+    # Step 11 — Save to Database
+    print("  [9/9] Saving candidate info to database...")
+    from backend.services.db_service import save_candidate_data
+    save_candidate_data(
+        name=info.get("name"),
+        email=info.get("email"),
+        score=final_score,
+        pdf_url=file_path
+    )
+
 
 # ─────────────────────────────────────────────────────────
 # ENTRY POINT
