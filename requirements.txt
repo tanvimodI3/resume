@@ -10,6 +10,18 @@ pymupdf
 python-dotenv
 Authlib
 docx2txt
+langchain
+langchain-community
+langchain-text-splitters
+langchain-chroma
+langchain-cohere
+cohere
+langchain-google-genai
+google-genai
+pymupdf
+python-dotenv
+Authlib
+docx2txt
 fastapi
 uvicorn
 pydantic
@@ -18,3 +30,5 @@ psycopg2
 scikit-learn
 numpy
 redis
+PyJWT
+passlib

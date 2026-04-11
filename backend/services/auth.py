@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -46,7 +47,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Dep
         if email is None:
             raise credentials_exception
         token_data = schemas.TokenData(email=email)
-    except JWTError:
+    except InvalidTokenError:
         raise credentials_exception
     user = session.query(models.User).filter(models.User.email == token_data.email).first()
     if user is None:
