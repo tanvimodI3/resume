@@ -9,6 +9,7 @@ from typing import List
 
 import db
 from services import models, schemas, auth, parser_service
+from services import interviewer_service
 
 app = FastAPI(title="AI Resume ATS API")
 
@@ -101,3 +102,83 @@ def get_user_history(current_user: models.User = Depends(auth.get_current_user),
 @app.get("/api/me", response_model=schemas.UserResponse)
 def get_me(current_user: models.User = Depends(auth.get_current_user)):
     return current_user
+
+
+# ─────────────────────────────────────────────────────────
+# AI INTERVIEWER ENDPOINTS
+# ─────────────────────────────────────────────────────────
+
+@app.post("/api/interview/start")
+async def interview_start(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """
+    Upload resume PDF → parse with Gemini → generate 5 personalized questions.
+    Returns: { resume_data: {...}, questions: ["Q1", ..., "Q5"] }
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    # Only accept PDF for the interviewer
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported for AI Interviewer")
+
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:  # 10 MB limit
+        raise HTTPException(status_code=400, detail="File too large (max 10 MB)")
+
+    try:
+        resume_data = interviewer_service.parse_resume_for_interview(contents, file.filename)
+        questions = interviewer_service.generate_questions(resume_data, num=5)
+        return {"resume_data": resume_data, "questions": questions}
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start interview: {str(e)}")
+
+
+@app.post("/api/interview/evaluate")
+async def interview_evaluate(
+    data: dict,
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """
+    Submit one answer → get AI score + structured feedback.
+    Body: { question: str, answer: str }
+    Returns: { score, feedback, strengths, improvements, suggestions }
+    """
+    question = data.get("question", "").strip()
+    answer = data.get("answer", "").strip()
+
+    if not question:
+        raise HTTPException(status_code=400, detail="Question is required")
+
+    try:
+        result = interviewer_service.evaluate_answer(question, answer)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Evaluation failed: {str(e)}")
+
+
+@app.post("/api/interview/report")
+async def interview_report(
+    data: dict,
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """
+    Submit all Q&A pairs → get final evaluation report.
+    Body: { qa_pairs: [{ question, answer, score }, ...] }
+    Returns: { overall_score, technical_skills, communication, problem_solving,
+               summary, strengths, areas_for_improvement }
+    """
+    qa_pairs = data.get("qa_pairs", [])
+
+    if not qa_pairs or len(qa_pairs) == 0:
+        raise HTTPException(status_code=400, detail="qa_pairs is required and must not be empty")
+
+    try:
+        report = interviewer_service.generate_final_report(qa_pairs)
+        return report
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")

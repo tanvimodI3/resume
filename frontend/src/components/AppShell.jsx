@@ -3,10 +3,11 @@ import { FileText, Mic, ShieldCheck, LogOut, ChevronRight, Clock, Zap, Globe } f
 import { Link } from 'react-router-dom';
 import ResumeParser from './ResumeParser';
 import Profile from './Profile';
+import AIInterviewer from './AIInterviewer';
 
 const NAV_ITEMS = [
   { id: 'resume-parser', icon: FileText, label: 'Resume Parser', available: true },
-  { id: 'ai-interviewer', icon: Mic, label: 'AI Interviewer', available: false },
+  { id: 'ai-interviewer', icon: Mic, label: 'AI Interviewer', available: true },
   { id: 'verification', icon: ShieldCheck, label: 'Verification', available: false },
 ];
 
@@ -54,12 +55,13 @@ function AppShell({ token, logout }) {
     if (activeTool === 'resume-parser') {
       return <ResumeParser token={token} onScanComplete={fetchHistory} />;
     }
+    if (activeTool === 'ai-interviewer') {
+      return <AIInterviewer token={token} />;
+    }
     return (
       <div className="coming-soon-page">
-        <div className="coming-soon-icon">
-          {activeTool === 'ai-interviewer' ? '🎙️' : '✅'}
-        </div>
-        <h2>{activeTool === 'ai-interviewer' ? 'AI Interviewer' : 'Verification'}</h2>
+        <div className="coming-soon-icon">✅</div>
+        <h2>Verification</h2>
         <p>This powerful feature is under active development.</p>
         <p className="coming-soon-sub">Stay tuned — it's coming very soon!</p>
       </div>
