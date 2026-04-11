@@ -9,17 +9,17 @@ from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Query, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, Field
 import uvicorn
 
-import db
-from services import models, schemas, auth, parser_service
-from oauth import oauth
+from backend import db
+from backend.services import models, schemas, auth, parser_service
+from backend.oauth import oauth
 from langchain_cohere import CohereEmbeddings
-from services import interviewer_service
+from backend.services import interviewer_service
 
 # ─────────────────────────────────────────────────────────
 # LOGGING
@@ -699,20 +699,20 @@ async def batch_match_endpoint(
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     """Handle HTTP exceptions."""
-    return {
-        "error": exc.detail,
-        "status_code": exc.status_code
-    }
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail, "status_code": exc.status_code}
+    )
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
     """Handle general exceptions."""
     logger.error(f"Unhandled exception: {str(exc)}")
-    return {
-        "error": "Internal server error",
-        "status_code": 500
-    }
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "status_code": 500}
+    )
 
 if __name__ == "__main__":
     logger.info("FastAPI Docs available at: http://localhost:8000/docs")

@@ -4,7 +4,7 @@ import json
 import concurrent.futures
 from dotenv import load_dotenv
 
-from services.cache_service import generate_hash, get_cache, set_cache
+from backend.services.cache_service import generate_hash, get_cache, set_cache
 
 load_dotenv()
 
@@ -13,6 +13,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_cohere import CohereEmbeddings, ChatCohere
 from langchain_core.messages import HumanMessage
+import fitz
 
 
 _cohere = ChatCohere(
@@ -100,6 +101,25 @@ def extract_text_from_upload(file_content: bytes, filename: str) -> str:
     finally:
         os.unlink(tmp_path)
 
+def extract_hyperlinks_from_pdf(file_path: str) -> list:
+    """Extract hyperlink URIs from PDF using PyMuPDF (fitz)."""
+    urls = []
+    try:
+        pdf_document = fitz.open(file_path)
+        for page_num in range(len(pdf_document)):
+            page = pdf_document[page_num]
+            links = page.get_links()
+            for link in links:
+                if link.get("uri"):
+                    uri = link["uri"]
+                    # Skip mailto links, only keep http/https URIs
+                    if not uri.lower().startswith("mailto:") and ("http://" in uri.lower() or "https://" in uri.lower()):
+                        urls.append(uri)
+        pdf_document.close()
+    except Exception as e:
+        print(f"Error extracting hyperlinks from PDF: {e}")
+    return urls
+
 def extract_info_with_cohere(resume_text: str) -> dict:
 
     prompt = f"""
@@ -111,7 +131,13 @@ Fields to extract:
 - "email": Email address (string or null)
 - "phone": Phone number (string or null)
 - "experience": Total years of experience as a short string like "2 years" or "Fresher" (string)
-- "profiles": List of profile URLs (GitHub, LinkedIn, Portfolio, etc.) found in the resume (list of strings)
+- "profiles": List of properly formatted URLs ONLY (GitHub, LinkedIn, Portfolio, etc.) found in the resume (list of strings). 
+  CRITICAL RULES:
+  1. ONLY extract URLs that start with http:// or https://
+  2. Do NOT include labels like "Github", "Linkedin", "Portfolio" without a URL
+  3. Do NOT guess or construct URLs - only extract what you can see as a complete URL
+  4. If a URL is incomplete (like just "github.com/username"), prepend "https://" to make it complete
+  5. If only a label with no URL is found, skip it entirely and return empty list
 - "skills": Extract max 15 HARD CORE technical skills and frameworks (e.g. Git, Docker, React) found implicitly in the entire text (list of strings). NO soft skills.
 
 RESUME TEXT:
@@ -274,8 +300,6 @@ RESUME:
 def compute_final_score(embedding_score: float, llm_score: float) -> float:
     return round(0.3 * embedding_score + 0.7 * llm_score, 2)
 
-    return round(0.3 * embedding_score + 0.7 * llm_score, 2)
-
 
 def _get_embedding_score_task(resume_text: str, jd_text: str) -> float:
 
@@ -313,13 +337,31 @@ def parse_resume(file_path: str, job_description: str) -> dict:
 
         future_eval = executor.submit(evaluate_with_cohere, resume_text, job_description)
 
-        future_embed = executor.submit(_get_embedding_score_task, resume_text, job_description)
-
         info = future_info.result()
 
         llm_eval = future_eval.result()
 
-        embedding_score = future_embed.result()
+    # Embedding must run outside the thread pool - CohereEmbeddings is not thread-safe
+    embedding_score = _get_embedding_score_task(resume_text, job_description)
+
+    # --- URL Extraction ---
+    cohere_urls = info.get("profiles", [])
+    
+    file_ext = file_path.lower().split('.')[-1]
+    pdf_urls = []
+    if file_ext == 'pdf':
+        pdf_urls = extract_hyperlinks_from_pdf(file_path)
+    
+    all_urls = cohere_urls + pdf_urls
+    
+    def is_valid_url(url):
+        if not isinstance(url, str):
+            return False
+        url_lower = url.lower()
+        return "." in url and ("http://" in url_lower or "https://" in url_lower)
+    
+    profiles = list(set([url for url in all_urls if is_valid_url(url)]))
+    # ----------------------
 
     llm_score = float(llm_eval.get("match_percentage", 0))
 
@@ -330,7 +372,7 @@ def parse_resume(file_path: str, job_description: str) -> dict:
         "email": info.get("email"),
         "phone": info.get("phone"),
         "experience": info.get("experience", "Unknown"),
-        "profiles": info.get("profiles", []),
+        "profiles": profiles,
         "skills": info.get("skills", []),
         "match_score": final_score,
         "missing_skills": llm_eval.get("missing_skills", []),
