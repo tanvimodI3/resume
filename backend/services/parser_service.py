@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import concurrent.futures
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,8 +18,23 @@ _cohere = ChatCohere(
     temperature=0.1,
 )
 
+_cohere_fast = ChatCohere(
+    model="command-r-08-2024",
+    cohere_api_key=os.getenv("COHERE_API_KEY"),
+    temperature=0.1,
+)
+
 def _ask_cohere(prompt: str) -> str:
     response = _cohere.invoke([HumanMessage(content=prompt)])
+    text = response.content.strip()
+    if text.startswith("```json"):
+        text = text[len("```json"):].strip()
+    if text.endswith("```"):
+        text = text[:-3].strip()
+    return text
+
+def _ask_cohere_fast(prompt: str) -> str:
+    response = _cohere_fast.invoke([HumanMessage(content=prompt)])
     text = response.content.strip()
     if text.startswith("```json"):
         text = text[len("```json"):].strip()
@@ -42,25 +58,26 @@ def extract_text_from_file(file_path: str) -> str:
 def extract_info_with_cohere(resume_text: str) -> dict:
     prompt = f"""
 You are an expert resume parser. Extract the following fields from the resume below.
-Return ONLY a valid JSON object. No explanation, no markdown, no code fences. Just raw JSON.
+Return ONLY a valid JSON object. NO markdown fences, NO explanation. Just raw JSON.
 Fields to extract:
 - "name": Full name of the candidate (string)
 - "email": Email address (string or null)
 - "phone": Phone number (string or null)
 - "experience": Total years of experience as a short string like "2 years" or "Fresher" (string)
 - "profiles": List of profile URLs (GitHub, LinkedIn, Portfolio, etc.) found in the resume (list of strings)
+- "skills": Extract max 15 HARD CORE technical skills and frameworks (e.g. Git, Docker, React) found implicitly in the entire text (list of strings). NO soft skills.
 
 RESUME TEXT:
-{resume_text[:4000]}
+{resume_text[:3000]}
 """
-    raw = _ask_cohere(prompt)
+    raw = _ask_cohere_fast(prompt)
     try:
         json_match = re.search(r"\{.*\}", raw, re.DOTALL)
         if json_match:
             return json.loads(json_match.group(0))
     except (json.JSONDecodeError, AttributeError):
         pass
-    return {"name": "Not found", "email": None, "phone": None, "experience": "Unknown", "profiles": []}
+    return {"name": "Not found", "email": None, "phone": None, "experience": "Unknown", "profiles": [], "skills": []}
 
 
 
@@ -83,6 +100,8 @@ def compute_embedding_score(vectorstore: Chroma, jd_text: str, k: int = 5) -> fl
 def evaluate_with_cohere(resume_text: str, jd_text: str) -> dict:
     prompt = f"""
 You are a senior ATS evaluator. Evaluate how well the candidate's resume matches the job description below.
+Score strictly between 0-100 based on core technical skill requirements. 
+Penalize the score heavily if core skills from the Job Description are missing. Reward the score for exact matches in their experience.
 Respond ONLY with a valid JSON object. No explanation. No markdown.
 Format:
 {{
@@ -95,7 +114,7 @@ JOB DESCRIPTION:
 {jd_text.strip()}
 
 RESUME:
-{resume_text[:3500]}
+{resume_text[:3000]}
 """
     raw = _ask_cohere(prompt)
     try:
@@ -107,14 +126,9 @@ RESUME:
     return {"match_percentage": 0, "missing_skills": [], "strengths": []}
 
 def compute_final_score(embedding_score: float, llm_score: float) -> float:
-    return round(0.7 * embedding_score + 0.3 * llm_score, 2)
+    return round(0.3 * embedding_score + 0.7 * llm_score, 2)
 
-def parse_resume(file_path: str, job_description: str) -> dict:
-    """End-to-end pipeline."""
-    resume_text = extract_text_from_file(file_path)
-    info = extract_info_with_cohere(resume_text)
-    
-
+def _get_embedding_score_task(resume_text: str, jd_text: str) -> float:
     chunks = chunk_text(resume_text)
     embedding_model = CohereEmbeddings(
         model="embed-english-v3.0",
@@ -122,9 +136,21 @@ def parse_resume(file_path: str, job_description: str) -> dict:
     )
     vectorstore = build_vectorstore(chunks, embedding_model)
     k = min(5, len(chunks)) if len(chunks) > 0 else 1
-    embedding_score = compute_embedding_score(vectorstore, job_description, k=k)
+    return compute_embedding_score(vectorstore, jd_text, k=k)
+
+def parse_resume(file_path: str, job_description: str) -> dict:
+    """End-to-end pipeline."""
+    resume_text = extract_text_from_file(file_path)
     
-    llm_eval = evaluate_with_cohere(resume_text, job_description)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_info = executor.submit(extract_info_with_cohere, resume_text)
+        future_eval = executor.submit(evaluate_with_cohere, resume_text, job_description)
+        future_embed = executor.submit(_get_embedding_score_task, resume_text, job_description)
+        
+        info = future_info.result()
+        llm_eval = future_eval.result()
+        embedding_score = future_embed.result()
+    
     llm_score = float(llm_eval.get("match_percentage", 0))
     
     final_score = compute_final_score(embedding_score, llm_score)
@@ -135,6 +161,7 @@ def parse_resume(file_path: str, job_description: str) -> dict:
         "phone": info.get("phone"),
         "experience": info.get("experience", "Unknown"),
         "profiles": info.get("profiles", []),
+        "skills": info.get("skills", []),
         "match_score": final_score,
         "missing_skills": llm_eval.get("missing_skills", []),
         "strengths": llm_eval.get("strengths", [])

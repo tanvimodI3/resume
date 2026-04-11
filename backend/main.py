@@ -79,6 +79,7 @@ async def parse_resume_endpoint(
             phone=result_dict.get("phone"),
             experience=result_dict["experience"],
             profiles=result_dict["profiles"],
+            skills=result_dict.get("skills", []),
             match_score=result_dict["match_score"],
             missing_skills=result_dict["missing_skills"],
             strengths=result_dict["strengths"],
