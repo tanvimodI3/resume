@@ -15,3 +15,5 @@ uvicorn
 pydantic
 python-multipart
 psycopg2
+scikit-learn
+numpy
