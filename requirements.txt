@@ -5,7 +5,7 @@ langchain-chroma
 langchain-cohere
 cohere
 langchain-google-genai
-google-generativeai
+google-genai
 pymupdf
 python-dotenv
 Authlib
