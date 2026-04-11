@@ -7,7 +7,7 @@ function Dashboard({ token, logout }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
-  
+
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -34,6 +34,12 @@ function Dashboard({ token, logout }) {
       return;
     }
 
+    if (!token) {
+      setError('Authentication token missing. Please log in again.');
+      logout();
+      return;
+    }
+
     setLoading(true);
     setError('');
     setResult(null);
@@ -51,8 +57,15 @@ function Dashboard({ token, logout }) {
         body: formData
       });
 
+      if (response.status === 401) {
+        setError('Session expired. Please log in again.');
+        logout();
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error('Failed to parse resume');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to parse resume');
       }
 
       const data = await response.json();
@@ -78,19 +91,19 @@ function Dashboard({ token, logout }) {
           <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <UploadCloud size={24} color="var(--accent-primary)" /> New Scan
           </h2>
-          
+
           <form onSubmit={handleSubmit}>
-            <div 
+            <div
               className={`file-drop-area ${file ? 'active' : ''}`}
               onDragOver={handleDragOver}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current.click()}
             >
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                style={{ display: 'none' }} 
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
                 accept=".pdf,.docx,.txt"
               />
               <UploadCloud className="drop-icon" />
@@ -109,9 +122,9 @@ function Dashboard({ token, logout }) {
 
             <div className="form-group">
               <label>Job Description</label>
-              <textarea 
-                rows="6" 
-                value={jobDescription} 
+              <textarea
+                rows="6"
+                value={jobDescription}
                 onChange={e => setJobDescription(e.target.value)}
                 placeholder="Paste the target job description here..."
               ></textarea>
@@ -145,26 +158,26 @@ function Dashboard({ token, logout }) {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="result-field">
-                  <span className="label"><User size={14} style={{display:'inline', verticalAlign:'middle', marginRight:'4px'}}/> Name</span>
+                  <span className="label"><User size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Name</span>
                   <span className="value">{result.name}</span>
                 </div>
                 <div className="result-field">
-                  <span className="label"><Briefcase size={14} style={{display:'inline', verticalAlign:'middle', marginRight:'4px'}}/> Experience</span>
+                  <span className="label"><Briefcase size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Experience</span>
                   <span className="value">{result.experience}</span>
                 </div>
                 <div className="result-field">
-                  <span className="label"><Mail size={14} style={{display:'inline', verticalAlign:'middle', marginRight:'4px'}}/> Email</span>
+                  <span className="label"><Mail size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Email</span>
                   <span className="value">{result.email || 'N/A'}</span>
                 </div>
                 <div className="result-field">
-                  <span className="label"><Phone size={14} style={{display:'inline', verticalAlign:'middle', marginRight:'4px'}}/> Phone</span>
+                  <span className="label"><Phone size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Phone</span>
                   <span className="value">{result.phone || 'N/A'}</span>
                 </div>
               </div>
 
               {result.profiles && result.profiles.length > 0 && (
                 <div className="result-field" style={{ marginTop: '1rem' }}>
-                  <span className="label"><LinkIcon size={14} style={{display:'inline', verticalAlign:'middle', marginRight:'4px'}}/> Profiles</span>
+                  <span className="label"><LinkIcon size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Profiles</span>
                   <div className="tag-list">
                     {result.profiles.map((p, i) => (
                       <a key={i} href={p.startsWith('http') ? p : `https://${p}`} target="_blank" rel="noreferrer" className="tag">{p}</a>

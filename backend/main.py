@@ -6,16 +6,17 @@ from sqlalchemy.exc import IntegrityError
 import shutil
 import os
 from typing import List
+from datetime import timedelta
 
 import db
-from services import models, schemas, auth, parser_service
+from services import models, schemas, auth, parser_service, github_fetcher, leetcode_fetcher
 
 app = FastAPI(title="AI Resume ATS API")
 
 # Setup CORS for Vite Frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For development
+    allow_origins=["http://localhost:5173", "http://localhost:5174"], # For development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,7 +49,8 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), ses
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = auth.create_access_token(data={"sub": user.email})
+    access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/api/parse", response_model=schemas.ScanResultResponse)
@@ -68,7 +70,12 @@ async def parse_resume_endpoint(
             shutil.copyfileobj(file.file, buffer)
         
         # Run AI Parser
-        result_dict = parser_service.parse_resume(temp_path, job_description)
+        try:
+            result_dict = parser_service.parse_resume(temp_path, job_description)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=str(e))
         
         # Save to DB
         scan_result = models.ScanResult(
@@ -82,7 +89,9 @@ async def parse_resume_endpoint(
             match_score=result_dict["match_score"],
             missing_skills=result_dict["missing_skills"],
             strengths=result_dict["strengths"],
-            job_description=job_description
+            job_description=job_description,
+            github_url=result_dict.get("github_url"),
+            leetcode_url=result_dict.get("leetcode_url")
         )
         session.add(scan_result)
         session.commit()
@@ -91,6 +100,30 @@ async def parse_resume_endpoint(
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
+@app.get("/github")
+async def github_details(session: Session = Depends(db.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    scan_result = session.query(models.ScanResult).filter(
+        models.ScanResult.user_id == current_user.id
+    ).order_by(models.ScanResult.id.desc()).first()
+    
+    if not scan_result or not scan_result.github_url:
+        return {"error": "No GitHub URL found"}
+    
+    result = await github_fetcher.fetch_github_profile(scan_result.github_url)
+    return result
+
+@app.get("/leetcode")
+async def leetcode_details(session: Session = Depends(db.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    scan_result = session.query(models.ScanResult).filter(
+        models.ScanResult.user_id == current_user.id
+    ).order_by(models.ScanResult.id.desc()).first()
+    
+    if not scan_result or not scan_result.leetcode_url:
+        return {"error": "No LeetCode URL found"}
+    
+    result = await leetcode_fetcher.fetch_leetcode_profile(scan_result.leetcode_url)
+    return result
 
 @app.get("/api/history", response_model=List[schemas.ScanResultResponse])
 def get_user_history(current_user: models.User = Depends(auth.get_current_user), session: Session = Depends(db.get_db)):

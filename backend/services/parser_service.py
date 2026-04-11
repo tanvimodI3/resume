@@ -10,15 +10,26 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_cohere import CohereEmbeddings, ChatCohere
 from langchain_core.messages import HumanMessage
+import fitz
+
+
+def _get_env_stripped(key: str) -> str:
+    value = os.getenv(key, "")
+    if isinstance(value, str):
+        return value.strip().strip('"').strip("'")
+    return ""
 
 _cohere = ChatCohere(
     model="command-r-plus-08-2024",
-    cohere_api_key=os.getenv("COHERE_API_KEY"),
+    cohere_api_key=_get_env_stripped("COHERE_API_KEY"),
     temperature=0.1,
 )
 
 def _ask_cohere(prompt: str) -> str:
-    response = _cohere.invoke([HumanMessage(content=prompt)])
+    try:
+        response = _cohere.invoke([HumanMessage(content=prompt)])
+    except Exception as e:
+        raise RuntimeError(f"Cohere API request failed: {e}")
     text = response.content.strip()
     if text.startswith("```json"):
         text = text[len("```json"):].strip()
@@ -39,6 +50,25 @@ def extract_text_from_file(file_path: str) -> str:
     docs = loader.load()
     return "\n".join(doc.page_content for doc in docs)
 
+def extract_hyperlinks_from_pdf(file_path: str) -> list:
+    """Extract hyperlink URIs from PDF using PyMuPDF (fitz)."""
+    urls = []
+    try:
+        pdf_document = fitz.open(file_path)
+        for page_num in range(len(pdf_document)):
+            page = pdf_document[page_num]
+            links = page.get_links()
+            for link in links:
+                if link.get("uri"):
+                    uri = link["uri"]
+                    # Skip mailto links, only keep http/https URIs
+                    if not uri.lower().startswith("mailto:") and ("http://" in uri.lower() or "https://" in uri.lower()):
+                        urls.append(uri)
+        pdf_document.close()
+    except Exception as e:
+        print(f"Error extracting hyperlinks from PDF: {e}")
+    return urls
+
 def extract_info_with_cohere(resume_text: str) -> dict:
     prompt = f"""
 You are an expert resume parser. Extract the following fields from the resume below.
@@ -48,7 +78,13 @@ Fields to extract:
 - "email": Email address (string or null)
 - "phone": Phone number (string or null)
 - "experience": Total years of experience as a short string like "2 years" or "Fresher" (string)
-- "profiles": List of profile URLs (GitHub, LinkedIn, Portfolio, etc.) found in the resume (list of strings)
+- "profiles": List of properly formatted URLs ONLY (GitHub, LinkedIn, Portfolio, etc.) found in the resume (list of strings). 
+  CRITICAL RULES:
+  1. ONLY extract URLs that start with http:// or https://
+  2. Do NOT include labels like "Github", "Linkedin", "Portfolio" without a URL
+  3. Do NOT guess or construct URLs - only extract what you can see as a complete URL
+  4. If a URL is incomplete (like just "github.com/username"), prepend "https://" to make it complete
+  5. If only a label with no URL is found, skip it entirely and return empty list
 
 RESUME TEXT:
 {resume_text[:4000]}
@@ -114,7 +150,41 @@ def parse_resume(file_path: str, job_description: str) -> dict:
     resume_text = extract_text_from_file(file_path)
     info = extract_info_with_cohere(resume_text)
     
-
+    # Extract URLs from Cohere
+    cohere_urls = info.get("profiles", [])
+    
+    # Extract hyperlinks directly from PDF if applicable
+    file_ext = file_path.lower().split('.')[-1]
+    pdf_urls = []
+    if file_ext == 'pdf':
+        pdf_urls = extract_hyperlinks_from_pdf(file_path)
+    
+    # Merge and deduplicate URLs
+    all_urls = cohere_urls + pdf_urls
+    
+    # Filter: keep only strings that look like URLs (contain . and http)
+    def is_valid_url(url):
+        if not isinstance(url, str):
+            return False
+        url_lower = url.lower()
+        return "." in url and ("http://" in url_lower or "https://" in url_lower)
+    
+    profiles = list(set([url for url in all_urls if is_valid_url(url)]))
+    
+    # Extract GitHub URL separately
+    github_url = None
+    for url in profiles:
+        if "github.com" in url.lower():
+            github_url = url
+            break
+    
+    # Extract LeetCode URL separately
+    leetcode_url = None
+    for url in profiles:
+        if "leetcode.com" in url.lower():
+            leetcode_url = url
+            break
+    
     chunks = chunk_text(resume_text)
     embedding_model = CohereEmbeddings(
         model="embed-english-v3.0",
@@ -134,7 +204,9 @@ def parse_resume(file_path: str, job_description: str) -> dict:
         "email": info.get("email"),
         "phone": info.get("phone"),
         "experience": info.get("experience", "Unknown"),
-        "profiles": info.get("profiles", []),
+        "profiles": profiles,
+        "github_url": github_url,
+        "leetcode_url": leetcode_url,
         "match_score": final_score,
         "missing_skills": llm_eval.get("missing_skills", []),
         "strengths": llm_eval.get("strengths", [])

@@ -7,11 +7,19 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS candidate_details (
-    cand_id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(100),
-    pdf_url TEXT,
-    status VARCHAR(50) DEFAULT 'not selected',
-    score FLOAT,
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    filename VARCHAR,
+    name VARCHAR,
+    email VARCHAR,
+    phone VARCHAR,
+    experience VARCHAR,
+    profiles JSON,
+    match_score FLOAT,
+    missing_skills JSON,
+    strengths JSON,
+    job_description TEXT,
+    github_url VARCHAR,
+    leetcode_url VARCHAR,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
