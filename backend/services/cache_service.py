@@ -8,23 +8,23 @@ def generate_hash(data):
 
 
 def get_cache(key):
-
-    value = redis_client.get(key)
-
-    if value:
-        print("CACHE HIT")
-        return json.loads(value)
-
-    print("CACHE MISS")
+    try:
+        value = redis_client.get(key)
+        if value:
+            print("CACHE HIT")
+            return json.loads(value)
+        print("CACHE MISS")
+    except Exception as e:
+        print(f"Redis connection error (get): {e}")
     return None
 
-
 def set_cache(key, data):
-
-    redis_client.setex(
-        key,
-        3600,
-        json.dumps(data)
-    )
-
-    print("STORED IN CACHE")
+    try:
+        redis_client.setex(
+            key,
+            3600,
+            json.dumps(data)
+        )
+        print("STORED IN CACHE")
+    except Exception as e:
+        print(f"Redis connection error (set): {e}")
