@@ -114,3 +114,7 @@ logs/
 build/
 dist/
 *.egg-info/
+
+# Backup Files
+*.bak
+backend/api.py.bak

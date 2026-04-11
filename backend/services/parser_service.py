@@ -39,6 +39,23 @@ def extract_text_from_file(file_path: str) -> str:
     docs = loader.load()
     return "\n".join(doc.page_content for doc in docs)
 
+def extract_text_from_upload(file_content: bytes, filename: str) -> str:
+    import tempfile
+    ext = filename.lower().split('.')[-1]
+    
+    if ext not in ['pdf', 'docx', 'txt']:
+        raise ValueError(f"Unsupported file extension: {ext}")
+    
+    with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
+        tmp.write(file_content)
+        tmp_path = tmp.name
+    
+    try:
+        text = extract_text_from_file(tmp_path)
+        return text
+    finally:
+        os.unlink(tmp_path)
+
 def extract_info_with_cohere(resume_text: str) -> dict:
     prompt = f"""
 You are an expert resume parser. Extract the following fields from the resume below.
@@ -62,6 +79,58 @@ RESUME TEXT:
         pass
     return {"name": "Not found", "email": None, "phone": None, "experience": "Unknown", "profiles": []}
 
+def extract_skills_with_cohere(resume_text: str) -> list[str]:
+    prompt = f"""
+You are an expert technical recruiter. Extract ALL skills mentioned in this resume.
+
+Include: programming languages, frameworks, libraries, databases, tools, cloud platforms,
+DevOps tools, soft skills, methodologies (Agile, Scrum), and any other relevant skills.
+
+Return ONLY a JSON array of skill strings. No explanation. No markdown. No code fences. Just raw JSON array.
+
+Example: ["Python", "React", "MongoDB", "Docker", "Leadership"]
+
+RESUME TEXT:
+{resume_text[:4000]}
+"""
+    raw = _ask_cohere(prompt)
+    try:
+        arr_match = re.search(r"\[.*\]", raw, re.DOTALL)
+        if arr_match:
+            return json.loads(arr_match.group(0))
+    except (json.JSONDecodeError, AttributeError):
+        pass
+    return []
+
+def normalize_skills_with_cohere(skills: list[str]) -> list[dict]:
+    if not skills:
+        return []
+
+    prompt = f"""
+You are a skill taxonomy expert. Normalize the following skill list and categorize each skill.
+
+Rules:
+- Fix abbreviations and synonyms (e.g. "JS" -> "JavaScript", "K8s" -> "Kubernetes", "Mongo" -> "MongoDB")
+- Assign each skill to exactly one of these categories:
+  "Languages", "Frontend", "Backend", "Databases", "DevOps & Cloud", "AI & ML",
+  "Testing", "Tools & Version Control", "Soft Skills", "Other"
+
+Return ONLY a JSON array. No explanation. No markdown. No code fences. Just raw JSON.
+
+Format:
+[{{"skill": "JavaScript", "category": "Languages"}}, ...]
+
+Raw skills: {json.dumps(skills)}
+"""
+    raw = _ask_cohere(prompt)
+    try:
+        arr_match = re.search(r"\[.*\]", raw, re.DOTALL)
+        if arr_match:
+            return json.loads(arr_match.group(0))
+    except (json.JSONDecodeError, AttributeError):
+        pass
+
+    return [{"skill": s, "category": "Other"} for s in skills]
 
 
 def chunk_text(text: str) -> list[str]:
