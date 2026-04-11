@@ -86,9 +86,9 @@ You are a senior ATS evaluator. Evaluate how well the candidate's resume matches
 Respond ONLY with a valid JSON object. No explanation. No markdown.
 Format:
 {{
-  "match_percentage": <integer 0-100>,
-  "missing_skills": ["skill1", "skill2"],
-  "strengths": ["strength1", "strength2"]
+    "match_percentage": <integer 0-100>,
+    "missing_skills": ["skill1", "skill2"],
+    "strengths": ["strength1", "strength2"]
 }}
 
 JOB DESCRIPTION:

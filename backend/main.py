@@ -96,3 +96,7 @@ async def parse_resume_endpoint(
 def get_user_history(current_user: models.User = Depends(auth.get_current_user), session: Session = Depends(db.get_db)):
     results = session.query(models.ScanResult).filter(models.ScanResult.user_id == current_user.id).order_by(models.ScanResult.id.desc()).all()
     return results
+
+@app.get("/api/me", response_model=schemas.UserResponse)
+def get_me(current_user: models.User = Depends(auth.get_current_user)):
+    return current_user
