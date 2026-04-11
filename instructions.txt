@@ -1,9 +1,0 @@
-frontend 
-npm install axios react-router-dom
-backend 
-create ur venv
-pip install requirements.txt
-
-to run 
-uvicorn main:app --reload
-npm run dev

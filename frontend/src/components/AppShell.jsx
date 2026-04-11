@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Mic, ShieldCheck, LogOut, ChevronRight, Clock, Zap, Globe } from 'lucide-react';
+import { FileText, Mic, ShieldCheck, LogOut, ChevronRight, Clock, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ResumeParser from './ResumeParser';
 import Profile from './Profile';
@@ -15,6 +15,15 @@ function AppShell({ token, logout }) {
   const [activeTool, setActiveTool] = useState('resume-parser');
   const [history, setHistory] = useState([]);
   const [user, setUser] = useState(null);
+  const [theme, setTheme] = useState(() => {
+    return document.documentElement.getAttribute('data-theme') || 'dark';
+  });
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    document.documentElement.setAttribute('data-theme', next);
+  };
 
   useEffect(() => {
     fetchUser();
@@ -165,6 +174,14 @@ function AppShell({ token, logout }) {
             ))}
           </div>
           <div className="top-bar-right">
+            <button
+              className="lp-theme-btn"
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              style={{ marginRight: '0.5rem' }}
+            >
+              {theme === 'dark' ? '○' : '●'}
+            </button>
             <button className="top-profile-btn" onClick={() => setActiveTool('profile')}>
               <div className="avatar-circle small">
                 {user ? getInitials(user.name) : 'U'}

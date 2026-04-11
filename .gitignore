@@ -68,6 +68,7 @@ chroma_db/
 # Uploaded Files & Temp
 # ─────────────────────────────────────────────────────────
 uploads/
+temp_uploads/
 tmp/
 temp/
 *.tmp
