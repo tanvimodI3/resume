@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Mic, ShieldCheck, LogOut, ChevronRight, Clock, Zap, Globe } from 'lucide-react';
+import { FileText, Mic, ShieldCheck, LogOut, ChevronRight, Clock, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ResumeParser from './ResumeParser';
 import Profile from './Profile';
 import AIInterviewer from './AIInterviewer';
+import ThemeToggle from './ThemeToggle';
+import { motion } from 'framer-motion';
 
 const NAV_ITEMS = [
   { id: 'resume-parser', icon: FileText, label: 'Resume Parser', available: true },
@@ -49,21 +51,15 @@ function AppShell({ token, logout }) {
   };
 
   const renderContent = () => {
-    if (activeTool === 'profile') {
-      return <Profile user={user} history={history} />;
-    }
-    if (activeTool === 'resume-parser') {
-      return <ResumeParser token={token} onScanComplete={fetchHistory} />;
-    }
-    if (activeTool === 'ai-interviewer') {
-      return <AIInterviewer token={token} />;
-    }
+    if (activeTool === 'profile') return <Profile user={user} history={history} />;
+    if (activeTool === 'resume-parser') return <ResumeParser token={token} onScanComplete={fetchHistory} />;
+    if (activeTool === 'ai-interviewer') return <AIInterviewer token={token} />;
     return (
       <div className="coming-soon-page">
         <div className="coming-soon-icon">✅</div>
         <h2>Verification</h2>
-        <p>This powerful feature is under active development.</p>
-        <p className="coming-soon-sub">Stay tuned — it's coming very soon!</p>
+        <p>This feature is under active development.</p>
+        <p className="coming-soon-sub">Coming very soon.</p>
       </div>
     );
   };
@@ -72,22 +68,20 @@ function AppShell({ token, logout }) {
     'resume-parser': 'Resume Parser',
     'ai-interviewer': 'AI Interviewer',
     'verification': 'Verification',
-    profile: 'My Profile',
+    profile: 'Profile',
   };
 
   return (
     <div className="app-shell">
       {/* ── Sidebar ── */}
       <aside className="sidebar">
-        {/* Logo */}
         <div className="sidebar-logo">
-          <div className="logo-icon">⚡</div>
+          <span className="logo-icon">✦</span>
           <span className="logo-text">Resume<span>AI</span></span>
         </div>
 
-        {/* Navigation */}
         <nav className="sidebar-nav">
-          <div className="nav-section-label">TOOLS</div>
+          <div className="nav-section-label">Tools</div>
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
@@ -95,30 +89,26 @@ function AppShell({ token, logout }) {
               onClick={() => item.available && setActiveTool(item.id)}
               title={!item.available ? 'Coming Soon' : item.label}
             >
-              <item.icon size={17} className="nav-item-icon" />
+              <item.icon size={15} className="nav-item-icon" />
               <span className="nav-item-label">{item.label}</span>
               {!item.available && <span className="soon-badge">Soon</span>}
               {item.available && activeTool === item.id && (
-                <ChevronRight size={13} className="nav-item-arrow" />
+                <ChevronRight size={12} className="nav-item-arrow" />
               )}
             </button>
           ))}
         </nav>
 
-        {/* Recent Scans History */}
         {history.length > 0 && (
           <div className="sidebar-history">
             <div className="nav-section-label">
-              <Clock size={10} /> RECENT SCANS
+              <Clock size={9} /> Recent
             </div>
             <div className="history-list">
               {history.map((item) => (
                 <div key={item.id} className="history-item" title={item.filename}>
                   <div className="history-item-name">{item.name || item.filename}</div>
-                  <div
-                    className="history-item-score"
-                    style={{ color: getScoreColor(item.match_score) }}
-                  >
+                  <div className="history-item-score" style={{ color: getScoreColor(item.match_score) }}>
                     {item.match_score}%
                   </div>
                 </div>
@@ -127,29 +117,25 @@ function AppShell({ token, logout }) {
           </div>
         )}
 
-        {/* Bottom: User profile + logout */}
         <div className="sidebar-bottom">
           <button className="profile-btn" onClick={() => setActiveTool('profile')}>
-            <div className="avatar-circle">
-              {user ? getInitials(user.name) : 'U'}
-            </div>
+            <div className="avatar-circle">{user ? getInitials(user.name) : 'U'}</div>
             <div className="profile-info">
-              <div className="profile-name">{user?.name || 'Loading...'}</div>
+              <div className="profile-name">{user?.name || '…'}</div>
               <div className="profile-email">{user?.email || ''}</div>
             </div>
           </button>
           <button className="logout-btn" onClick={logout} title="Sign Out">
-            <LogOut size={15} />
+            <LogOut size={14} />
           </button>
         </div>
       </aside>
 
       {/* ── Main Area ── */}
       <div className="main-area">
-        {/* Top Bar */}
         <header className="top-bar">
           <div className="top-bar-title">
-            <Zap size={17} />
+            <Zap size={14} />
             <span>{titleMap[activeTool]}</span>
           </div>
           <div className="top-bar-center">
@@ -159,23 +145,28 @@ function AppShell({ token, logout }) {
               { path: '/policy', label: 'Policy' },
               { path: '/docs', label: 'Docs' },
             ].map(({ path, label }) => (
-              <Link key={path} to={path} className="topbar-nav-link">
-                {label}
-              </Link>
+              <Link key={path} to={path} className="topbar-nav-link">{label}</Link>
             ))}
           </div>
           <div className="top-bar-right">
+            <ThemeToggle />
             <button className="top-profile-btn" onClick={() => setActiveTool('profile')}>
-              <div className="avatar-circle small">
-                {user ? getInitials(user.name) : 'U'}
-              </div>
+              <div className="avatar-circle small">{user ? getInitials(user.name) : 'U'}</div>
               <span>{user?.name || 'Profile'}</span>
             </button>
           </div>
         </header>
 
-        {/* Content */}
-        <main className="content-area">{renderContent()}</main>
+        <main className="content-area">
+          <motion.div
+            key={activeTool}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {renderContent()}
+          </motion.div>
+        </main>
       </div>
     </div>
   );
