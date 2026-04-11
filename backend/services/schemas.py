@@ -2,12 +2,14 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
 class UserCreate(BaseModel):
-    username: str
+    name: str
+    email: str
     password: str
 
 class UserResponse(BaseModel):
     id: int
-    username: str
+    name: str
+    email: str
     class Config:
         from_attributes = True
 
@@ -16,7 +18,7 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    username: Optional[str] = None
+    email: Optional[str] = None
 
 class ScanResultCreate(BaseModel):
     filename: str

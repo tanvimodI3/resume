@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -6,7 +7,8 @@ import shutil
 import os
 from typing import List
 
-from . import models, schemas, auth, database, parser_service
+import db
+from services import models, schemas, auth, parser_service
 
 app = FastAPI(title="AI Resume ATS API")
 
@@ -20,39 +22,33 @@ app.add_middleware(
 )
 
 # Initialize DB tables
-models.Base.metadata.create_all(bind=database.engine)
+models.Base.metadata.create_all(bind=db.engine)
 
 @app.post("/auth/signup", response_model=schemas.UserResponse)
-def signup(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
+def signup(user: schemas.UserCreate, session: Session = Depends(db.get_db)):
     hashed_pwd = auth.get_password_hash(user.password)
-    db_user = models.User(username=user.username, hashed_password=hashed_pwd)
+    db_user = models.User(name=user.name, email=user.email, password=hashed_pwd)
     try:
-        db.add(db_user)
-        db.commit()
-        db.refresh(db_user)
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
         return db_user
     except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=400, detail="Username already registered")
+        session.rollback()
+        raise HTTPException(status_code=400, detail="Email already registered")
 
-@app.post("/auth/login", response_model=schemas.Token)
-def login(form_data: auth.OAuth2PasswordBearer = Depends(), db: Session = Depends(database.get_db)):
-    # Standard OAuth2 behavior expects username and password
-    # But since we might use simple JSON from frontend, let's create a custom route
-    pass # Wait, OAuth2PasswordRequestForm is better
 
-from fastapi.security import OAuth2PasswordRequestForm
 
 @app.post("/auth/token", response_model=schemas.Token)
-def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
-    user = db.query(models.User).filter(models.User.username == form_data.username).first()
-    if not user or not auth.verify_password(form_data.password, user.hashed_password):
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(db.get_db)):
+    user = session.query(models.User).filter(models.User.email == form_data.username).first()
+    if not user or not auth.verify_password(form_data.password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = auth.create_access_token(data={"sub": user.username})
+    access_token = auth.create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/api/parse", response_model=schemas.ScanResultResponse)
@@ -60,7 +56,7 @@ async def parse_resume_endpoint(
     file: UploadFile = File(...),
     job_description: str = Form(...),
     current_user: models.User = Depends(auth.get_current_user),
-    db: Session = Depends(database.get_db)
+    session: Session = Depends(db.get_db)
 ):
     # Save uploaded file temporarily
     temp_dir = "temp_uploads"
@@ -88,15 +84,15 @@ async def parse_resume_endpoint(
             strengths=result_dict["strengths"],
             job_description=job_description
         )
-        db.add(scan_result)
-        db.commit()
-        db.refresh(scan_result)
+        session.add(scan_result)
+        session.commit()
+        session.refresh(scan_result)
         return scan_result
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
 @app.get("/api/history", response_model=List[schemas.ScanResultResponse])
-def get_user_history(current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
-    results = db.query(models.ScanResult).filter(models.ScanResult.user_id == current_user.id).order_by(models.ScanResult.id.desc()).all()
+def get_user_history(current_user: models.User = Depends(auth.get_current_user), session: Session = Depends(db.get_db)):
+    results = session.query(models.ScanResult).filter(models.ScanResult.user_id == current_user.id).order_by(models.ScanResult.id.desc()).all()
     return results

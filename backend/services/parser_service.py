@@ -62,42 +62,7 @@ RESUME TEXT:
         pass
     return {"name": "Not found", "email": None, "phone": None, "experience": "Unknown", "profiles": []}
 
-def extract_skills_with_cohere(resume_text: str) -> list[str]:
-    prompt = f"""
-You are an expert technical recruiter. Extract ALL skills mentioned in this resume.
-Include: programming languages, frameworks, libraries, databases, tools, cloud platforms, DevOps tools, soft skills.
-Return ONLY a JSON array of skill strings. No explanation. No markdown. No code fences.
 
-RESUME TEXT:
-{resume_text[:4000]}
-"""
-    raw = _ask_cohere(prompt)
-    try:
-        arr_match = re.search(r"\[.*\]", raw, re.DOTALL)
-        if arr_match:
-            return json.loads(arr_match.group(0))
-    except (json.JSONDecodeError, AttributeError):
-        pass
-    return []
-
-def normalize_skills_with_cohere(skills: list[str]) -> list[dict]:
-    if not skills:
-        return []
-    prompt = f"""
-You are a skill taxonomy expert. Normalize the following skill list and categorize each skill.
-Categories: "Languages", "Frontend", "Backend", "Databases", "DevOps & Cloud", "AI & ML", "Testing", "Tools & Version Control", "Soft Skills", "Other"
-Return ONLY a JSON array of objects {{'skill': '...', 'category': '...'}}. No markdown.
-
-Raw skills: {json.dumps(skills)}
-"""
-    raw = _ask_cohere(prompt)
-    try:
-        arr_match = re.search(r"\[.*\]", raw, re.DOTALL)
-        if arr_match:
-            return json.loads(arr_match.group(0))
-    except (json.JSONDecodeError, AttributeError):
-        pass
-    return [{"skill": s, "category": "Other"} for s in skills]
 
 def chunk_text(text: str) -> list[str]:
     splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50, separators=["\n\n", "\n", " ", ""])
@@ -149,11 +114,7 @@ def parse_resume(file_path: str, job_description: str) -> dict:
     resume_text = extract_text_from_file(file_path)
     info = extract_info_with_cohere(resume_text)
     
-    # We can skip extraction and normalization of all skills if not directly stored,
-    # but let's keep it if we want to show it. Actually, wait, the user asked for:
-    # "results name, email, phone, experience, profiles, how much score, and missing skills"
-    # We will just gather the required data.
-    
+
     chunks = chunk_text(resume_text)
     embedding_model = CohereEmbeddings(
         model="embed-english-v3.0",
