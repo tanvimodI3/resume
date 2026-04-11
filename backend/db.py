@@ -14,4 +14,27 @@ def get_connection():
         port=os.getenv("DB_PORT")
     )
 
-cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+def get_user_by_email(email: str):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM users WHERE email=%s", (email,))
+            return cur.fetchone()
+    finally:
+        conn.close()
+
+
+def create_user(name: str, email: str, password: str):
+    conn = get_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "INSERT INTO users (name, email, password) VALUES (%s, %s, %s) RETURNING id, name, email, created_at",
+                (name, email, password),
+            )
+            user = cur.fetchone()
+            conn.commit()
+            return user
+    finally:
+        conn.close()

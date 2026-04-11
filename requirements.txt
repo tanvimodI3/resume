@@ -2,10 +2,16 @@ langchain
 langchain-community
 langchain-text-splitters
 langchain-chroma
+langchain-cohere
+cohere
 langchain-google-genai
 google-generativeai
 pymupdf
 python-dotenv
-
+Authlib
 docx2txt
+fastapi
+uvicorn
+pydantic
+python-multipart
 psycopg2

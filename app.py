@@ -60,6 +60,28 @@ def extract_text_from_file(file_path: str) -> str:
     docs = loader.load()
     return "\n".join(doc.page_content for doc in docs)
 
+# ─────────────────────────────────────────────────────────
+# STEP 1B: TEXT EXTRACTION FROM UPLOADED FILE
+# ─────────────────────────────────────────────────────────
+
+def extract_text_from_upload(file_content: bytes, filename: str) -> str:
+    """Extracts text from uploaded file bytes."""
+    import tempfile
+    ext = filename.lower().split('.')[-1]
+    
+    if ext not in ['pdf', 'docx', 'txt']:
+        raise ValueError(f"Unsupported file extension: {ext}")
+    
+    with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
+        tmp.write(file_content)
+        tmp_path = tmp.name
+    
+    try:
+        text = extract_text_from_file(tmp_path)
+        return text
+    finally:
+        os.unlink(tmp_path)
+
 
 # ─────────────────────────────────────────────────────────
 # STEP 2: INFO EXTRACTION — Cohere
