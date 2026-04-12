@@ -55,7 +55,7 @@ Resume content is split into chunks and embedded using Cohere Embeddings.
 
 These embeddings are stored in **ChromaDB**, where semantic similarity search is performed against the job description to calculate a contextual match score.
 
-The resulting score reflects how closely the candidate aligns with the JD (instead of blindly rewarding whoever mentioned “Python” the most times).
+The resulting score reflects how closely the candidate aligns with the JD.
 
 ---
 
