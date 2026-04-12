@@ -9,8 +9,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-if not GITHUB_TOKEN:
-    raise RuntimeError("GITHUB_TOKEN environment variable is required but not set")
 
 GITHUB_API_BASE = "https://api.github.com"
 
@@ -35,10 +33,10 @@ def extract_github_username(url: str) -> Optional[str]:
 
 def _get_auth_header() -> Dict[str, str]:
     """Return authorization header with bearer token."""
-    return {
-        "Authorization": f"Bearer {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json"
-    }
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    return headers
 
 async def _fetch_github_api(
     session: aiohttp.ClientSession,

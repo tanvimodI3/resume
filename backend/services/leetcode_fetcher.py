@@ -110,8 +110,8 @@ def extract_username_from_url(url: str) -> str:
     """
     # Patterns for LeetCode URLs
     patterns = [
-        r"https?://leetcode\.com/([^/]+)/?",  # https://leetcode.com/username/
         r"https?://leetcode\.com/u/([^/]+)/?",  # https://leetcode.com/u/username/
+        r"https?://leetcode\.com/([^/]+)/?",  # https://leetcode.com/username/
     ]
     
     for pattern in patterns:
