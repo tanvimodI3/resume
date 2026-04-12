@@ -3,17 +3,19 @@ import { FileText, Mic, ShieldCheck, LogOut, ChevronRight, Clock, Zap } from 'lu
 import { Link } from 'react-router-dom';
 import ResumeParser from './ResumeParser';
 import Profile from './Profile';
+import ProfileVerification from './ProfileVerification';
 import AIInterviewer from './AIInterviewer';
 
 const NAV_ITEMS = [
   { id: 'resume-parser', icon: FileText, label: 'Resume Parser', available: true },
   { id: 'ai-interviewer', icon: Mic, label: 'AI Interviewer', available: true },
-  { id: 'verification', icon: ShieldCheck, label: 'Verification', available: false },
+  { id: 'verification', icon: ShieldCheck, label: 'Verification', available: true },
 ];
 
 function AppShell({ token, logout }) {
   const [activeTool, setActiveTool] = useState('resume-parser');
   const [history, setHistory] = useState([]);
+  const [lastScanProfiles, setLastScanProfiles] = useState([]);
   const [user, setUser] = useState(null);
   const [theme, setTheme] = useState(() => {
     return document.documentElement.getAttribute('data-theme') || 'dark';
@@ -44,7 +46,14 @@ function AppShell({ token, logout }) {
       const res = await fetch('http://localhost:8000/api/history', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setHistory((await res.json()).slice(0, 15));
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.slice(0, 15));
+        // Extract profiles from most recent scan for auto-fill
+        if (data.length > 0 && data[0].profiles) {
+          setLastScanProfiles(data[0].profiles);
+        }
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -66,6 +75,9 @@ function AppShell({ token, logout }) {
     }
     if (activeTool === 'ai-interviewer') {
       return <AIInterviewer token={token} />;
+    }
+    if (activeTool === 'verification') {
+      return <ProfileVerification token={token} lastScanProfiles={lastScanProfiles} />;
     }
     return (
       <div className="coming-soon-page">

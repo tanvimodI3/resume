@@ -20,6 +20,7 @@ from backend.services import models, schemas, auth, parser_service
 from backend.oauth import oauth
 from langchain_cohere import CohereEmbeddings
 from backend.services import interviewer_service
+from backend.services import profile_service
 
 # ─────────────────────────────────────────────────────────
 # LOGGING
@@ -694,6 +695,46 @@ async def batch_match_endpoint(
     except Exception as e:
         logger.error(f"Error in batch_match: {str(e)}")
         raise HTTPException(status_code=500, detail="Error in batch matching")
+
+
+# ─────────────────────────────────────────────────────────
+# PROFILE VERIFICATION ENDPOINTS
+# ─────────────────────────────────────────────────────────
+
+class ProfileAnalysisRequest(BaseModel):
+    profiles: List[str] = Field(..., min_length=1, description="List of profile URLs to analyze")
+
+
+@app.post("/api/analyze-profiles", tags=["Profile Verification"])
+async def analyze_profiles_endpoint(data: ProfileAnalysisRequest):
+    """
+    Analyze a list of profile URLs (GitHub, LeetCode, etc.).
+    Returns detailed analysis for GitHub and LeetCode profiles,
+    and classified links for other platforms.
+    """
+    try:
+        if not data.profiles or len(data.profiles) == 0:
+            raise ValueError("At least one profile URL is required")
+
+        # Filter out empty strings
+        urls = [u.strip() for u in data.profiles if u and u.strip()]
+        if not urls:
+            raise ValueError("No valid URLs provided")
+
+        logger.info(f"Analyzing {len(urls)} profile URLs...")
+        results = profile_service.classify_and_analyze_profiles(urls)
+
+        return {
+            "total_submitted": len(urls),
+            "total_analyzed": len([r for r in results if r.get('status') == 'success']),
+            "results": results
+        }
+    except ValueError as e:
+        logger.warning(f"Validation error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error analyzing profiles: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error analyzing profiles")
 
 
 @app.exception_handler(HTTPException)

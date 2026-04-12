@@ -1834,3 +1834,509 @@
   color: var(--fg-muted);
   letter-spacing: 0.04em;
 }
+
+
+/* ╔══════════════════════════════════════════════════════════════════╗
+   ║  PROFILE VERIFICATION STYLES                                   ║
+   ╚══════════════════════════════════════════════════════════════════╝ */
+
+/* ── Layout ────────────────────────────────────────────── */
+.pv-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 1.5rem;
+  min-height: calc(100vh - var(--topbar-height) - 3rem);
+}
+
+@media (max-width: 900px) {
+  .pv-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pv-input-panel {
+  position: sticky;
+  top: calc(var(--topbar-height) + 1.5rem);
+  align-self: start;
+}
+
+.pv-desc {
+  font-size: 0.82rem;
+  color: var(--fg-secondary);
+  margin-bottom: 1.2rem;
+  line-height: 1.5;
+}
+
+.pv-autofill-btn {
+  width: 100%;
+  margin-bottom: 0.75rem;
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem;
+  background: var(--accent-subtle);
+  border: 1px solid var(--border);
+  color: var(--fg-secondary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.pv-autofill-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--fg);
+}
+
+.pv-results-panel {
+  min-height: 400px;
+}
+
+.pv-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ── Loading Panel ─────────────────────────────────────── */
+.pv-loading-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 350px;
+  gap: 0.75rem;
+}
+.pv-loading-panel h3 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 1.15rem;
+}
+.pv-loading-sub {
+  font-size: 0.8rem;
+  color: var(--fg-secondary);
+}
+
+@keyframes pv-spin {
+  to { transform: rotate(360deg); }
+}
+.pv-spin {
+  animation: pv-spin 1s linear infinite;
+}
+
+/* ── Card Base ─────────────────────────────────────────── */
+.pv-card {
+  animation: pv-fadeUp 0.4s ease both;
+  padding: 1.5rem;
+}
+
+@keyframes pv-fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pv-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.pv-platform-label {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+  flex: 1;
+}
+
+.pv-ext-link {
+  color: var(--fg-muted);
+  padding: 0.3rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.pv-ext-link:hover {
+  color: var(--fg);
+  background: var(--bg-hover);
+  opacity: 1;
+}
+
+.pv-error-text {
+  font-size: 0.82rem;
+  color: var(--fg-secondary);
+}
+
+.pv-section-title {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin-bottom: 0.6rem;
+}
+
+
+/* ── GitHub Card ───────────────────────────────────────── */
+.pv-gh-user {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.pv-gh-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border-md);
+  flex-shrink: 0;
+}
+
+.pv-gh-name {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.pv-gh-bio {
+  font-size: 0.78rem;
+  color: var(--fg-secondary);
+  margin-top: 0.15rem;
+  line-height: 1.4;
+}
+
+.pv-gh-meta {
+  font-size: 0.72rem;
+  color: var(--fg-muted);
+  margin-top: 0.2rem;
+}
+
+/* Stats row (shared) */
+.pv-stat-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.pv-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--accent-subtle);
+  border-radius: var(--radius-md);
+  flex: 1;
+  min-width: 70px;
+}
+
+.pv-stat svg {
+  color: var(--fg-muted);
+}
+
+.pv-stat-val {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--fg);
+}
+
+.pv-stat-label {
+  font-size: 0.62rem;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Language bar */
+.pv-lang-section {
+  margin-bottom: 1.25rem;
+}
+
+.pv-lang-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+  background: var(--bg-hover);
+}
+
+.pv-lang-segment {
+  min-width: 4px;
+  transition: width 0.5s ease;
+}
+
+.pv-lang-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.pv-lang-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: var(--fg-secondary);
+}
+
+.pv-lang-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Repos grid */
+.pv-repos-section {
+  margin-top: 0.25rem;
+}
+
+.pv-repos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+@media (max-width: 700px) {
+  .pv-repos-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pv-repo-card {
+  display: block;
+  padding: 0.75rem 0.85rem;
+  background: var(--accent-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition);
+  text-decoration: none;
+  color: var(--fg);
+}
+.pv-repo-card:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  opacity: 1;
+}
+
+.pv-repo-name {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--fg);
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pv-repo-desc {
+  font-size: 0.7rem;
+  color: var(--fg-secondary);
+  line-height: 1.4;
+  margin-bottom: 0.4rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pv-repo-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.65rem;
+  color: var(--fg-muted);
+}
+
+.pv-repo-lang {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pv-repo-stars,
+.pv-repo-forks {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+
+/* ── LeetCode Card ─────────────────────────────────────── */
+.pv-lc-user {
+  margin-bottom: 1rem;
+}
+
+.pv-lc-name {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.pv-lc-rank {
+  font-size: 0.78rem;
+  color: var(--fg-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+}
+.pv-lc-rank svg {
+  color: var(--warning);
+}
+
+/* Solved section with ring */
+.pv-lc-solved-section {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: var(--accent-subtle);
+  border-radius: var(--radius-md);
+}
+
+.pv-lc-ring-wrap {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  flex-shrink: 0;
+}
+
+.pv-lc-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.pv-lc-ring-bg {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 6;
+}
+
+.pv-lc-ring-fill {
+  fill: none;
+  stroke: var(--warning);
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.8s ease;
+}
+
+.pv-lc-ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.pv-lc-ring-num {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--fg);
+  line-height: 1;
+}
+
+.pv-lc-ring-label {
+  font-size: 0.6rem;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 0.1rem;
+}
+
+.pv-lc-difficulty-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex: 1;
+}
+
+.pv-lc-diff-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pv-lc-diff-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pv-lc-diff-dot.easy   { background: #00b8a3; }
+.pv-lc-diff-dot.medium { background: #ffc01e; }
+.pv-lc-diff-dot.hard   { background: #ef4743; }
+
+.pv-lc-diff-label {
+  font-size: 0.78rem;
+  color: var(--fg-secondary);
+  flex: 1;
+}
+
+.pv-lc-diff-val {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--fg);
+}
+
+.pv-lc-contest {
+  margin-bottom: 1rem;
+}
+
+.pv-lc-badges {
+  margin-top: 0.25rem;
+}
+
+
+/* ── Other Link Card ───────────────────────────────────── */
+.pv-other-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pv-other-url {
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  color: var(--fg);
+  word-break: break-all;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--border-md);
+  transition: all var(--transition);
+}
+.pv-other-url:hover {
+  text-decoration-color: var(--fg);
+  opacity: 1;
+}
+
+.pv-other-username {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+.pv-other-note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--fg-muted);
+  margin-top: 0.25rem;
+}
