@@ -1,115 +1,188 @@
-# AI-Powered Resume ATS (Applicant Tracking System)
+# Resume Intelligence Platform
 
-## 📌 Overview
-The AI-Powered Resume ATS is a full-stack, intelligent web application built to help technical recruiters, HR professionals, and administrators streamline their hiring process. By leveraging large language models (LLMs) and vector databases, the application compares candidate resumes against given job descriptions (JDs) and automatically generates match scores, identifies missing skills, and extracts essential candidate information.
-
-## 🚀 Key Features
-- **Intelligent Resume Parsing:** Automatically extracts candidate details such as Name, Email, Phone, Experience, and Profiles (LinkedIn, GitHub) from uploaded resumes (supports PDF, DOCX, and TXT).
-- **AI-Powered Evaluation:** Uses LangChain and Cohere's advanced LLMs to identify specific candidate strengths and pinpoint missing skills relative to the job description.
-- **Semantic Matching (Vector Search):** Chunks resume content and uses ChromaDB with Cohere Embeddings to calculate a contextual match score based on how well the candidate aligns with the JD.
-- **Secure Authentication:** JWT-based secure signup and login flows for admins/recruiters, ensuring resume evaluation histories remain private.
-- **History Tracking:** All previously scanned resumes are saved to the PostgreSQL database, allowing recruiters to review past candidate matches effortlessly.
-
-## 🛠️ Tech Stack 
-**Backend**
-- **Framework:** FastAPI (Python)
-- **Database:** PostgreSQL & SQLAlchemy (ORM)
-- **AI & NLP:** LangChain, Cohere (Command R+ LLM and v3.0 Embeddings) 
-- **Vector Storage:** Chroma
-- **Authentication:** OAuth2 with JWT (Passlib & python-jose)
-
-**Frontend**
-- **Framework:** React + Vite
-- **Styling:** Custom CSS (Glassmorphism UI)
-- **Routing:** React Router DOM
+A full-stack web application for AI-powered resume evaluation, profile verification, and interview practice. Designed for recruiters and hiring teams to assess candidates against job descriptions using LLM-based scoring and real-world profile data.
 
 ---
 
-## 📂 Project Structure
+## Features
 
-```text
-parser/
-├── .env                 # Environment variables (API Keys, DB Credentials)
-├── docker-compose.yml   # Docker configuration for local Postgres
-├── requirements.txt     # Python backend dependencies
-├── backend/             # FASTAPI APPLICATION
-│   ├── main.py          # Entry point containing API routes (auth, parse, history)
-│   ├── db.py            # Database connection and session management
-│   ├── queries/         
-│   │   └── tables.sql   # SQL tables schema outline
-│   └── services/        
-│       ├── auth.py          # JWT, hashing, and security logic
-│       ├── models.py        # SQLAlchemy database models (User, CandidateDetails)
-│       ├── schemas.py       # Pydantic data validation schemas
-│       └── parser_service.py # LangChain & Cohere AI core logic
-└── frontend/            # REACT VITE APPLICATION
-    ├── src/
-    │   ├── components/  # React components (Signup, Login, Dashboard)
-    │   ├── App.jsx      # Main application router
-    │   └── index.css    # Core visual styling
-    └── package.json     # Node.js dependencies
+- **Resume Parsing** — Extracts name, email, phone, experience, and profile links from PDF, DOCX, and TXT files
+- **ATS Match Scoring** — Combines semantic similarity (ChromaDB embeddings) with LLM evaluation (Cohere) to produce a final match score against a job description
+- **Profile Verification** — Fetches live data from GitHub and LeetCode to cross-check resume-claimed skills, scored via Gemini
+- **AI Interview Practice** — Generates personalized interview questions from an uploaded resume, evaluates answers, and produces a final performance report
+- **Scan History** — All resume evaluations are saved per user for later review
+- **Authentication** — JWT-based login and signup, with Google OAuth support
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | FastAPI, Python 3.9+ |
+| Database | PostgreSQL, SQLAlchemy |
+| Caching | Redis |
+| AI / LLM | Cohere (Command R+ and v3.0 embeddings), Google Gemini (2.0 Flash) |
+| Vector Store | ChromaDB |
+| Frontend | React + Vite |
+| Auth | OAuth2, JWT (python-jose, passlib) |
+| Infrastructure | Docker Compose |
+
+---
+
+## Project Structure
+
+```
+resume/
+├── docker-compose.yml          # Spins up PostgreSQL and Redis
+├── requirements.txt            # Root-level Python dependencies
+├── backend/
+│   ├── main.py                 # FastAPI app, all route definitions
+│   ├── db.py                   # Database connection and session
+│   ├── auth.py                 # JWT and password utilities
+│   ├── oauth.py                # Google OAuth configuration
+│   ├── redis_client.py         # Redis connection
+│   ├── queries/
+│   │   └── tables.sql          # Database schema
+│   └── services/
+│       ├── models.py           # SQLAlchemy models
+│       ├── schemas.py          # Pydantic schemas
+│       ├── parser_service.py   # Resume parsing and ATS scoring (Cohere)
+│       ├── interviewer_service.py  # AI interview logic (Gemini)
+│       ├── verification_service.py # Profile verification scoring (Gemini)
+│       ├── profile_service.py  # Profile URL classification and analysis
+│       ├── github_fetcher.py   # GitHub API integration
+│       ├── leetcode_fetcher.py # LeetCode API integration
+│       └── linkedin_extraction.py  # LinkedIn profile extraction
+└── frontend/
+    ├── index.html
+    ├── package.json
+    └── src/
+        ├── App.jsx
+        ├── components/
+        │   ├── Dashboard.jsx
+        │   ├── ResumeParser.jsx
+        │   ├── AIInterviewer.jsx
+        │   ├── ProfileVerification.jsx
+        │   ├── Login.jsx
+        │   └── Signup.jsx
+        └── index.css
 ```
 
 ---
 
-## ⚙️ Setup and Installation
+## How It Works
 
-### 1. Prerequisites
+### Resume Matching
+
+1. User uploads a resume (PDF, DOCX, or TXT) along with a job description
+2. The backend extracts text, chunks it, and generates embeddings via Cohere
+3. A semantic similarity score is computed against the job description using ChromaDB
+4. Cohere's LLM independently evaluates the resume to identify strengths and missing skills
+5. Both scores are combined into a final match percentage
+6. The result is saved to the user's scan history
+
+### Profile Verification
+
+1. GitHub and LeetCode URLs are extracted from the parsed resume
+2. Live data is fetched from both platforms (repositories, languages, solved problems)
+3. The fetched profile data and resume-claimed skills are sent to Gemini
+4. Gemini returns a verification score and a breakdown of corroborated vs unverified skills
+
+### AI Interview
+
+1. User uploads a resume PDF
+2. Gemini generates five personalized interview questions based on the resume content
+3. The user answers each question in the UI
+4. Each answer is evaluated by Gemini for relevance, depth, and accuracy
+5. A final report with an overall score and per-question feedback is returned
+
+---
+
+## Setup
+
+### Prerequisites
+
 - Python 3.9+
-- Node.js (for the frontend environment)
-- PostgreSQL (or use the provided `docker-compose.yml` to spin it up)
+- Node.js 18+
+- Docker and Docker Compose
 
-### 2. Environment Variables
-Create an `.env` file in the root directory (`/parser`) and populate it with your credentials:
+### Environment Variables
+
+Create a `.env` file in the root directory:
+
 ```env
-COHERE_API_KEY="your-cohere-api-key"
-DATABASE_URL="postgresql://username:password@localhost:5432/resume_db"
+COHERE_API_KEY=your_cohere_api_key
+GEMINI_API_KEY=your_gemini_api_key
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/parser_db
+SESSION_SECRET=your_session_secret
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+FRONTEND_URL=http://localhost:5173
 ```
 
-### 3. Start the Database
-If you do not have a Postgres database running locally, you can use Docker:
+### 1. Start the Database and Redis
+
 ```bash
 docker-compose up -d
 ```
 
-### 4. Backend Setup
-Open a terminal in the root directory:
-```powershell
-# Create a virtual environment
+This starts PostgreSQL on port `5432` and Redis on port `6379`.
+
+### 2. Backend
+
+```bash
+# Create and activate a virtual environment
 python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
 
-# Activate the virtual environment (Windows)
-.\venv\Scripts\activate
-# (Mac/Linux: source venv/bin/activate)
-
-# Install requirements
+# Install dependencies
 pip install -r requirements.txt
 
-# Run the FastAPI server
+# Start the FastAPI server
 cd backend
 uvicorn main:app --reload
 ```
-*The backend API will be running at: `http://127.0.0.1:8000`*
 
-### 5. Frontend Setup
-Open a second terminal window:
-```powershell
-# Navigate to the frontend
+Backend runs at: `http://localhost:8000`  
+API docs available at: `http://localhost:8000/docs`
+
+### 3. Frontend
+
+Open a separate terminal:
+
+```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Run the dev server
 npm run dev
 ```
-*The React UI will be accessible at: `http://localhost:5173`*
+
+Frontend runs at: `http://localhost:5173`
 
 ---
 
-## 📖 How it Works
-1. **Admin Access:** You sign up securely on the platform. Your details are hashed and stored in Postgres. You log in to obtain a JWT token.
-2. **Upload:** From the dashboard, attach a resume file and paste the target Job Description.
-3. **Parse & Embed:** The backend slices the resume into chunks, creates mathematical embeddings out of them, and stores them temporarily in Chroma.
-4. **Compare:** It uses Similarity Search against the JD embeddings. Meanwhile, Cohere's LLM reads the text directly to synthesize an overarching evaluation (Strengths & Missing Skills).
-5. **View:** A concise match score and evaluation report is returned directly to your UI dashboard and archived forever in your search history.
+## API Overview
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/auth/signup` | Register a new user |
+| POST | `/auth/token` | Login and receive JWT |
+| GET | `/auth/google` | Initiate Google OAuth |
+| POST | `/api/parse` | Parse resume and match to job description |
+| GET | `/api/history` | Get all past scans for current user |
+| GET | `/api/me` | Get current user info |
+| POST | `/api/interview/start` | Upload resume and get interview questions |
+| POST | `/api/interview/evaluate` | Evaluate a single answer |
+| POST | `/api/interview/report` | Generate final interview report |
+| POST | `/api/analyze-profiles` | Analyze GitHub and LeetCode profile URLs |
+| POST | `/api/verify-profiles` | Score skill verification against profile data |
+| GET | `/github` | Fetch GitHub data for the latest scanned resume |
+| GET | `/leetcode` | Fetch LeetCode data for the latest scanned resume |
+
+---
+
+## Notes
+
+- The `chroma_db/` directory is auto-generated and stores temporary vector embeddings locally
+- Resume files are processed in memory and not stored on disk beyond the request lifecycle
+- All scan results are persisted in PostgreSQL and tied to the authenticated user
