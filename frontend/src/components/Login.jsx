@@ -57,22 +57,16 @@ function Login({ setToken }) {
     <>
       <Navbar />
       <div className="auth-container">
-        <motion.div
-          className="auth-box"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-        >
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2.5rem' }}>
+        <div className="glass-panel auth-box">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2.5rem', alignItems: 'flex-start' }}>
             <div>
-              <h1>Welcome back.</h1>
-              <p className="auth-subtitle">Sign in to continue</p>
+              <h1 style={{ fontFamily: 'var(--font-serif)', fontStyle: 'normal !important', color: '#fff', margin: 0 }}>Welcome Back</h1>
+              <p className="auth-subtitle" style={{ color: '#aaa', marginTop: '0.5rem' }}>Sign in to continue</p>
             </div>
             <ThemeToggle />
           </div>
 
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="error-message" style={{ marginBottom: '1rem' }}>{error}</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
@@ -95,30 +89,34 @@ function Login({ setToken }) {
               />
             </div>
 
-            <button type="submit" className="btn-primary" disabled={loading}>
+            <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%', marginTop: '1rem' }}>
               {loading ? "Signing in..." : "Sign In →"}
             </button>
           </form>
 
           {/* Divider */}
-          <div style={{ margin: "1.5rem 0", textAlign: "center" }}>
-            <span style={{ color: "#888" }}>OR</span>
+          <div style={{ margin: "1.5rem 0", textAlign: "center", position: 'relative' }}>
+             <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)' }} />
+             <span style={{ color: "#888", position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'var(--glass-bg)', padding: '0 10px' }}>OR</span>
           </div>
 
           {/* Google Button */}
           <button
             onClick={handleGoogleLogin}
+            className="google-btn"
             style={{
               width: "100%",
-              padding: "10px",
+              padding: "12px",
               borderRadius: "8px",
-              border: "1px solid #ddd",
-              background: "white",
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(255,255,255,0.05)",
+              color: "#fff",
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
               gap: "10px",
-              cursor: "pointer"
+              cursor: "pointer",
+              transition: "all 0.3s ease"
             }}
           >
             <img
@@ -129,11 +127,10 @@ function Login({ setToken }) {
             Continue with Google
           </button>
 
-          <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+          <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.9rem' }}>
             No account? <Link to="/signup">Create one</Link>
           </div>
-
-        </motion.div>
+        </div>
       </div>
     </>
   );

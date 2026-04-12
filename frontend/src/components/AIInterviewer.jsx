@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import {
   UploadCloud, FileText, Mic, MicOff, ChevronRight,
   CheckCircle, XCircle, TrendingUp, RotateCcw, Send,
-  Award, Brain, MessageSquare, Target
+  Award, Brain, MessageSquare, Target, HelpCircle, Trophy
 } from 'lucide-react';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -359,7 +359,7 @@ function AIInterviewer({ token }) {
             <UploadCloud className="drop-icon" size={38} />
             {file ? (
               <div>
-                <p className="drop-filename">📄 {file.name}</p>
+                <p className="drop-filename"><FileText size={16} /> {file.name}</p>
                 <p className="drop-sub">Click or drag to replace</p>
               </div>
             ) : (
@@ -397,23 +397,23 @@ function AIInterviewer({ token }) {
             <div className="empty-icon"><Mic size={44} /></div>
             <h3>How It Works</h3>
             <div style={{ textAlign: 'left', width: '100%', maxWidth: '340px', margin: '0 auto' }}>
-              {[
-                { icon: '📄', text: 'Upload your PDF resume' },
-                { icon: '🧠', text: 'AI reads your skills, experience & projects' },
-                { icon: '❓', text: '5 personalized questions are generated' },
-                { icon: '🎤', text: 'Answer by typing or speaking (mic button)' },
-                { icon: '📊', text: 'Get scored feedback after each answer' },
-                { icon: '🏆', text: 'Receive a full evaluation report at the end' },
-              ].map(({ icon, text }, i) => (
+{[
+                { icon: FileText, text: 'Upload your PDF resume' },
+                { icon: Brain, text: 'AI reads your skills, experience & projects' },
+                { icon: HelpCircle, text: '5 personalized questions are generated' },
+                { icon: Mic, text: 'Answer by typing or speaking (mic button)' },
+                { icon: TrendingUp, text: 'Get scored feedback after each answer' },
+                { icon: Trophy, text: 'Receive a full evaluation report at the end' },
+              ].map(({ icon: Icon, text }, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.65rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                  <span style={{ fontSize: '1.1rem' }}>{icon}</span>
+                  <span style={{ fontSize: '1.1rem' }}><Icon size={18} /></span>
                   <span>{text}</span>
                 </div>
               ))}
             </div>
             {voiceSupported && (
-              <div style={{ marginTop: '1rem', padding: '0.6rem 1rem', background: 'var(--accent-muted, rgba(99,102,241,0.1))', borderRadius: '8px', color: 'var(--accent)', fontSize: '0.8rem' }}>
-                🎤 Voice input supported in your browser
+<div style={{ marginTop: '1rem', padding: '0.6rem 1rem', background: 'var(--accent-muted, rgba(99,102,241,0.1))', borderRadius: '8px', color: 'var(--accent)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Mic size={16} /> Voice input supported in your browser
               </div>
             )}
           </div>
@@ -495,7 +495,7 @@ function AIInterviewer({ token }) {
               rows={7}
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
-              placeholder={isListening ? '🎤 Listening… speak your answer…' : 'Type your answer here, or click Speak to use voice input…'}
+              placeholder={isListening ? 'Listening… speak your answer…' : 'Type your answer here, or click Speak to use voice input…'}
               disabled={answerSubmitted || isListening}
               style={{ opacity: answerSubmitted ? 0.7 : 1 }}
             />

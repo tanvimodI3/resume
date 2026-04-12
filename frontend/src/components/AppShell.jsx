@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Mic, ShieldCheck, LogOut, ChevronRight, Clock, Zap } from 'lucide-react';
+import { FileText, Mic, ShieldCheck, LogOut, ChevronRight, Clock, Zap, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ResumeParser from './ResumeParser';
 import Profile from './Profile';
@@ -104,7 +104,7 @@ function AppShell({ token, logout }) {
     }
     return (
       <div className="coming-soon-page">
-        <div className="coming-soon-icon">✅</div>
+        <div className="coming-soon-icon"><CheckCircle size={40} /></div>
         <h2>Verification</h2>
         <p>This feature is under active development.</p>
         <p className="coming-soon-sub">Coming very soon.</p>
@@ -124,7 +124,7 @@ function AppShell({ token, logout }) {
       {/* ── Sidebar ── */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <span className="logo-icon">✦</span>
+          <div className="logo-icon"><Zap size={22} /></div>
           <span className="logo-text">Resume<span>AI</span></span>
         </div>
 

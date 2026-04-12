@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   ShieldCheck, GitBranch, Code2, Link2, Globe, ExternalLink,
   Star, GitFork, Users, BookOpen, Trophy, Target, TrendingUp,
-  Loader2, AlertCircle, CheckCircle2, Search, Sparkles, Zap
+  Loader2, AlertCircle, CheckCircle2, Search, Sparkles, Zap, MapPin
 } from 'lucide-react';
 
 const PLATFORM_ICONS = {
@@ -165,7 +165,7 @@ function ProfileVerification({ token, lastScanProfiles, lastScan }) {
                 <Loader2 size={16} className="pv-spin" /> Analyzing...
               </span>
             ) : (
-              '⚡ Analyze Profiles'
+              <><Zap size={16} /> Analyze Profiles</>
             )}
           </button>
         </form>
@@ -325,7 +325,7 @@ function GitHubCard({ data, delay }) {
           <div className="pv-gh-name">{user.name}</div>
           {user.bio && <div className="pv-gh-bio">{user.bio}</div>}
           {user.location && (
-            <div className="pv-gh-meta">📍 {user.location}</div>
+            <div className="pv-gh-meta"><MapPin size={14} /> {user.location}</div>
           )}
         </div>
       </div>
@@ -623,7 +623,7 @@ function LinkedInCard({ data, delay }) {
             else if (pData.location?.locationName) locStr = pData.location.locationName;
             else if (pData.location?.countryName) locStr = pData.location.countryName;
             else if (typeof pData.geo === 'string') locStr = pData.geo;
-            return locStr ? <div className="pv-gh-meta">📍 {locStr}</div> : null;
+            return locStr ? <div className="pv-gh-meta"><MapPin size={14} /> {locStr}</div> : null;
           })()}
         </div>
       </div>

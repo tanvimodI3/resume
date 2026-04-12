@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Zap, FileText, Brain, BarChart3 } from 'lucide-react';
 
 /* ── Typing animation hook ────────────────────────────────────── */
 function useTyping(words, { typeSpeed = 120, deleteSpeed = 80, pause = 2400 } = {}) {
@@ -98,7 +99,7 @@ function LandingHero({ exiting, theme, toggleTheme }) {
       {/* Nav */}
       <header className="lp-nav" id="landing-nav">
         <div className="lp-logo">
-          <span className="lp-logo-icon">⚡</span>
+          <span className="lp-logo-icon"><Zap size={20} /></span>
           Resume<span className="lp-logo-accent">AI</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -120,7 +121,7 @@ function LandingHero({ exiting, theme, toggleTheme }) {
           AI-Powered Hiring
         </motion.p>
 
-        <motion.h1
+<motion.h1
           className="lp-hero"
           id="landing-hero-title"
           initial={{ opacity: 0, y: 30 }}
@@ -147,15 +148,15 @@ function LandingHero({ exiting, theme, toggleTheme }) {
           transition={{ duration: 0.8, delay: 1.1 }}
         >
           <div className="lp-feature-pill">
-            <span className="lp-pill-icon">📄</span>
+            <span className="lp-pill-icon"><FileText size={14} /></span>
             PDF Parsing
           </div>
           <div className="lp-feature-pill">
-            <span className="lp-pill-icon">🧠</span>
+            <span className="lp-pill-icon"><Brain size={14} /></span>
             AI Matching
           </div>
           <div className="lp-feature-pill">
-            <span className="lp-pill-icon">📊</span>
+            <span className="lp-pill-icon"><BarChart3 size={14} /></span>
             Smart Scoring
           </div>
         </motion.div>
@@ -240,7 +241,7 @@ function AuthPanel({ visible, setToken, theme, toggleTheme }) {
       {/* Top bar */}
       <header className="lp-auth-nav">
         <div className="lp-logo">
-          <span className="lp-logo-icon">⚡</span>
+          <span className="lp-logo-icon"><Zap size={20} /></span>
           Resume<span className="lp-logo-accent">AI</span>
         </div>
         <button className="lp-theme-btn" onClick={toggleTheme} aria-label="Toggle theme">
@@ -267,7 +268,7 @@ function AuthPanel({ visible, setToken, theme, toggleTheme }) {
           <p className="lp-auth-eyebrow">
             0{mode === 'login' ? '1' : '2'} / {mode === 'login' ? 'Login' : 'Sign Up'}
           </p>
-          <h1 className="lp-auth-title" id="auth-title">
+<h1 className="lp-auth-title" id="auth-title">
             {mode === 'login' ? 'Welcome back.' : 'Join us.'}
           </h1>
           <p className="lp-auth-sub">

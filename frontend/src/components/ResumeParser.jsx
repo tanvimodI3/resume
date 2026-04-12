@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   UploadCloud, FileText, CheckCircle, XCircle,
-  User, Briefcase, Mail, Phone, Link as LinkIcon, TrendingUp, Search
+  User, Briefcase, Mail, Phone, Link as LinkIcon, TrendingUp, Search, Zap
 } from 'lucide-react';
 
 const STEPS = [
@@ -149,7 +149,7 @@ function ResumeParser({ token, onScanComplete, persistedData, onStateChange }) {
             <UploadCloud className="drop-icon" size={38} />
             {file ? (
               <div>
-                <p className="drop-filename">📄 {file.name}</p>
+                <p className="drop-filename"><FileText size={16} /> {file.name}</p>
                 <p className="drop-sub">Click or drag to replace</p>
               </div>
             ) : (
@@ -185,7 +185,7 @@ function ResumeParser({ token, onScanComplete, persistedData, onStateChange }) {
                 <div className="spinner" /> Analyzing...
               </span>
             ) : (
-              '⚡ Analyze Resume'
+              <><Zap size={16} /> Analyze Resume</>
             )}
           </button>
         </form>
