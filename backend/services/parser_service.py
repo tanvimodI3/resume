@@ -92,7 +92,7 @@ Fields to extract:
 RESUME TEXT:
 {resume_text[:3000]}
 """
-    raw = _ask_cohere_fast(prompt)
+    raw = _ask_cohere(prompt)
     try:
         json_match = re.search(r"\{.*\}", raw, re.DOTALL)
         if json_match:
@@ -208,6 +208,9 @@ def parse_resume(file_path: str, job_description: str) -> dict:
     
     final_score = compute_final_score(embedding_score, llm_score)
 
+    # Extract skills
+    skills = extract_skills_with_cohere(resume_text)
+
     result = {
         "name": info.get("name", "Not found"),
         "email": info.get("email"),
@@ -221,3 +224,58 @@ def parse_resume(file_path: str, job_description: str) -> dict:
         "missing_skills": llm_eval.get("missing_skills", []),
         "strengths": llm_eval.get("strengths", [])
     }
+
+    return result
+
+def extract_skills_with_cohere(resume_text: str) -> list[str]:
+    prompt = f"""
+You are a skilled resume parser. Extract all technical and professional skills from the resume below.
+Return ONLY a JSON array of strings. NO markdown fences, NO explanation. Just raw JSON.
+
+Rules:
+- Extract only actual skills (programming languages, frameworks, tools, technologies, soft skills)
+- Do NOT include job titles, company names, education, or personal info
+- Be comprehensive but avoid duplicates
+- Normalize to standard names (e.g., "JS" -> "JavaScript", "C#" -> "C Sharp")
+
+RESUME TEXT:
+{resume_text[:3000]}
+"""
+    raw = _ask_cohere(prompt)
+    try:
+        json_match = re.search(r"\[.*\]", raw, re.DOTALL)
+        if json_match:
+            skills_list = json.loads(json_match.group(0))
+            return [skill.strip() for skill in skills_list if isinstance(skill, str)]
+    except (json.JSONDecodeError, AttributeError):
+        pass
+    return []
+
+
+def normalize_skills_with_cohere(raw_skills: list[str]) -> list[dict]:
+    if not raw_skills:
+        return []
+    
+    skills_str = "\n".join(raw_skills)
+    prompt = f"""
+You are a skills normalization expert. For each skill below, provide a normalized version and category.
+Return ONLY a valid JSON array of objects. NO markdown fences, NO explanation. Just raw JSON.
+
+Format:
+[
+  {{"skill": "original skill", "normalized": "Normalized Skill Name", "category": "Programming Language|Framework|Tool|Technology|Soft Skill"}},
+  ...
+]
+
+SKILLS:
+{skills_str}
+"""
+    raw = _ask_cohere(prompt)
+    try:
+        json_match = re.search(r"\[.*\]", raw, re.DOTALL)
+        if json_match:
+            return json.loads(json_match.group(0))
+    except (json.JSONDecodeError, AttributeError):
+        pass
+    # Fallback: return raw skills with default category
+    return [{"skill": skill, "normalized": skill, "category": "Other"} for skill in raw_skills]

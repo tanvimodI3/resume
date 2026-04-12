@@ -54,6 +54,7 @@ function Dashboard({ token, logout }) {
         headers: {
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: formData
       });
 
