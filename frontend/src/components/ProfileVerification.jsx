@@ -34,11 +34,14 @@ const LANG_COLORS = {
   Vue: '#41b883', SCSS: '#c6538c',
 };
 
-function ProfileVerification({ token, lastScanProfiles }) {
+function ProfileVerification({ token, lastScanProfiles, lastScan }) {
   const [urlInput, setUrlInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
+
+  const [verifying, setVerifying] = useState(false);
+  const [verificationData, setVerificationData] = useState(null);
 
   const handleAutoFill = () => {
     if (lastScanProfiles && lastScanProfiles.length > 0) {
@@ -80,6 +83,32 @@ function ProfileVerification({ token, lastScanProfiles }) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    if (!lastScan || !lastScan.skills) {
+       setError("No resume skills found in the last scan. Please parse a resume first.");
+       return;
+    }
+    setVerifying(true);
+    setError('');
+    try {
+      const resp = await fetch('http://localhost:8000/api/verify-profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+           resume_skills: lastScan.skills.map(s => typeof s === 'string' ? s : s.skill),
+           profile_data: results
+        })
+      });
+      if (!resp.ok) throw new Error("Failed to verify profiles");
+      const data = await resp.json();
+      setVerificationData(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -150,11 +179,46 @@ function ProfileVerification({ token, lastScanProfiles }) {
         )}
 
         {!loading && results && results.length > 0 && (
-          <div className="pv-results-list">
-            {results.map((r, i) => (
-              <ProfileCard key={i} data={r} index={i} />
-            ))}
-          </div>
+          <>
+            <div className="pv-results-list">
+              {results.map((r, i) => (
+                <ProfileCard key={i} data={r} index={i} />
+              ))}
+            </div>
+
+            <div className="glass-panel" style={{ marginTop: '2rem' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <Zap size={20} color="var(--accent)" /> AI Verification Scoring
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                 Compare claimed resume skills against evidence found in these verified online profiles.
+              </p>
+              {!verificationData && !verifying && (
+                <button className="btn-primary" onClick={handleVerify}>
+                   <Sparkles size={16} /> Run Gemini Evaluation
+                </button>
+              )}
+              {verifying && (
+                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', color: 'var(--accent)' }}>
+                   <Loader2 className="pv-spin" size={16} /> Evaluating with Gemini...
+                 </div>
+              )}
+              {verificationData && (
+                <div style={{ display: 'flex', gap: '1.5rem', flexDirection: 'column', marginTop: '1rem' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: verificationData.verification_score >= 70 ? 'var(--success)' : 'var(--warning)' }}>
+                     Authenticity Score: {verificationData.verification_score} / 100
+                  </div>
+                  
+                  <div>
+                     <strong>Verified Skills (Evidence Found):</strong>
+                     <div className="tag-list" style={{ marginTop: '0.75rem' }}>
+                        {verificationData.verified_skills?.map((s,i)=><span key={i} className="tag strength">{s}</span>)}
+                     </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
         )}
 
         {!loading && results && results.length === 0 && (
@@ -216,6 +280,10 @@ function ProfileCard({ data, index }) {
 
   if (platform === 'leetcode' && data.status === 'success') {
     return <LeetCodeCard data={data} delay={delay} />;
+  }
+
+  if (platform === 'linkedin' && data.status === 'success') {
+    return <LinkedInCard data={data} delay={delay} />;
   }
 
   // link_only or other
@@ -504,6 +572,98 @@ function OtherLinkCard({ data, delay }) {
           Link detected — deep analysis not available for this platform
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
+   LINKEDIN CARD
+   ───────────────────────────────────────────────────────── */
+
+function LinkedInCard({ data, delay }) {
+  const info = data.data || {};
+  const extractArr = (item) => {
+    if (!item) return [];
+    if (Array.isArray(item)) return item;
+    if (Array.isArray(item.data)) return item.data;
+    if (item.data && Array.isArray(item.data.data)) return item.data.data;
+    return [];
+  };
+
+  const pData = info.profile_detail?.data || info.profile_detail || {};
+  const exps = extractArr(info.experiences);
+  const edus = extractArr(info.educations);
+  const skls = extractArr(info.skills);
+  const url = data.url || `https://linkedin.com/in/${data.username}`;
+
+  return (
+    <div className="glass-panel pv-card pv-linkedin-card" style={{ animationDelay: delay }}>
+      <div className="pv-card-header">
+        <Link2 size={20} />
+        <span className="pv-platform-label">LinkedIn</span>
+        <a href={url} target="_blank" rel="noreferrer" className="pv-ext-link">
+          <ExternalLink size={13} />
+        </a>
+      </div>
+
+      <div className="pv-gh-user">
+        {pData.profilePicture || pData.profileImageUrl || pData.avatar ? (
+          <img src={pData.profilePicture || pData.profileImageUrl || pData.avatar} alt="Avatar" className="pv-gh-avatar" />
+        ) : null}
+        <div>
+          <div className="pv-gh-name">{pData.firstName || pData.lastName ? `${pData.firstName || ''} ${pData.lastName || ''}` : (data.username || "LinkedIn User")}</div>
+          {pData.headline && <div className="pv-gh-bio">{pData.headline}</div>}
+          {(() => {
+            let locStr = '';
+            if (typeof pData.location === 'string') locStr = pData.location;
+            else if (pData.location?.defaultLocalizedName) locStr = pData.location.defaultLocalizedName;
+            else if (pData.location?.locationName) locStr = pData.location.locationName;
+            else if (pData.location?.countryName) locStr = pData.location.countryName;
+            else if (typeof pData.geo === 'string') locStr = pData.geo;
+            return locStr ? <div className="pv-gh-meta">📍 {locStr}</div> : null;
+          })()}
+        </div>
+      </div>
+
+      {exps.length > 0 && (
+        <div className="pv-repos-section">
+          <div className="pv-section-title">Experience</div>
+          <div className="pv-stat-row" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {exps.slice(0, 3).map((exp, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
+                <Target size={14} style={{ minWidth: '14px', color: 'var(--accent)' }} />
+                <span><strong>{exp.title}</strong> {exp.companyName || exp.company ? `at ${exp.companyName || exp.company}` : ''}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {edus.length > 0 && (
+        <div className="pv-repos-section">
+          <div className="pv-section-title">Education</div>
+          <div className="pv-stat-row" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {edus.slice(0, 2).map((edu, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
+                <BookOpen size={14} style={{ minWidth: '14px', color: 'var(--accent)' }} />
+                <span>{edu.schoolName || edu.school} {edu.degreeName || edu.degree ? `- ${edu.degreeName || edu.degree}` : ''}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {skls.length > 0 && (
+        <div className="pv-lc-badges">
+          <div className="pv-section-title">Skills</div>
+          <div className="tag-list">
+            {skls.slice(0, 10).map((s, i) => {
+              const skillName = typeof s === 'string' ? s : (s.name || s.title || '');
+              return skillName ? <span key={i} className="tag strength">{skillName}</span> : null;
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

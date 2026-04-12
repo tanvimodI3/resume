@@ -77,7 +77,7 @@ function AppShell({ token, logout }) {
       return <AIInterviewer token={token} />;
     }
     if (activeTool === 'verification') {
-      return <ProfileVerification token={token} lastScanProfiles={lastScanProfiles} />;
+      return <ProfileVerification token={token} lastScanProfiles={lastScanProfiles} lastScan={history[0]} />;
     }
     return (
       <div className="coming-soon-page">

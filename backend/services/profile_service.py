@@ -12,6 +12,8 @@ import requests
 from typing import Optional
 from urllib.parse import urlparse
 
+from services.linkedin_extraction import get_full_candidate_profile
+
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────
@@ -313,8 +315,18 @@ def classify_and_analyze_profiles(urls: list[str]) -> list[dict]:
                 analysis = analyze_leetcode_profile(username)
                 results.append(analysis)
 
+            elif platform == "linkedin" and username:
+                analysis = get_full_candidate_profile(info["url"])
+                results.append({
+                    "platform": "linkedin",
+                    "username": username,
+                    "url": info["url"],
+                    "status": "success",
+                    "data": analysis
+                })
+
             else:
-                # LinkedIn, Twitter, Kaggle, Portfolio, etc.
+                # Twitter, Kaggle, Portfolio, etc.
                 results.append({
                     "platform": platform,
                     "username": username,

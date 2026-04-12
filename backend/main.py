@@ -544,6 +544,12 @@ def fetch_candidate(linkedin_url: str):
 # PROFILE VERIFICATION ENDPOINTS
 # ─────────────────────────────────────────────────────────
 
+from typing import Any, Dict
+
+class ProfileVerificationScoreRequest(BaseModel):
+    resume_skills: List[str]
+    profile_data: List[Dict[str, Any]]
+
 class ProfileAnalysisRequest(BaseModel):
     profiles: List[str] = Field(..., min_length=1, description="List of profile URLs to analyze")
 
@@ -578,6 +584,17 @@ async def analyze_profiles_endpoint(data: ProfileAnalysisRequest):
     except Exception as e:
         logger.error(f"Error analyzing profiles: {str(e)}")
         raise HTTPException(status_code=500, detail="Error analyzing profiles")
+
+
+@app.post("/api/verify-profiles", tags=["Profile Verification"])
+async def verify_profiles_endpoint(data: ProfileVerificationScoreRequest):
+    try:
+        from backend.services.verification_service import verify_profiles_with_gemini
+        result = verify_profiles_with_gemini(data.resume_skills, data.profile_data)
+        return result
+    except Exception as e:
+        logger.error(f"Error in verify-profiles: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error generating verification score")
 
 
 # ── Exception Handlers ────────────────────────────────────
