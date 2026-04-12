@@ -13,12 +13,12 @@ const STEPS = [
 
 const STEP_DELAYS = [0, 4000, 9000, 14000];
 
-function ResumeParser({ token, onScanComplete }) {
-  const [file, setFile] = useState(null);
-  const [jobDescription, setJobDescription] = useState('');
+function ResumeParser({ token, onScanComplete, persistedData, onStateChange }) {
+  const [file, setFile] = useState(persistedData?.file || null);
+  const [jobDescription, setJobDescription] = useState(persistedData?.jobDescription || '');
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(-1);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(persistedData?.result || null);
   const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
 
@@ -34,9 +34,11 @@ function ResumeParser({ token, onScanComplete }) {
 
   const handleFileChange = (e) => {
     if (e.target.files?.[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
       setResult(null);
       setError('');
+      onStateChange({ file: selectedFile, result: null });
     }
   };
 
@@ -46,9 +48,11 @@ function ResumeParser({ token, onScanComplete }) {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files?.[0]) {
-      setFile(e.dataTransfer.files[0]);
+      const droppedFile = e.dataTransfer.files[0];
+      setFile(droppedFile);
       setResult(null);
       setError('');
+      onStateChange({ file: droppedFile, result: null });
     }
   };
 
@@ -92,7 +96,8 @@ function ResumeParser({ token, onScanComplete }) {
       setTimeout(() => {
         setLoading(false);
         setResult(data);
-        if (onScanComplete) onScanComplete();
+        onStateChange({ result: data });
+        if (onScanComplete) onScanComplete(data);
       }, 700);
     } catch (err) {
       clearTimers();
@@ -164,7 +169,10 @@ function ResumeParser({ token, onScanComplete }) {
               id="job-description-input"
               rows={9}
               value={jobDescription}
-              onChange={(e) => setJobDescription(e.target.value)}
+              onChange={(e) => {
+                setJobDescription(e.target.value);
+                onStateChange({ jobDescription: e.target.value });
+              }}
               placeholder="Paste the full job description here..."
             />
           </div>

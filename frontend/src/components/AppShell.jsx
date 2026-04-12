@@ -16,9 +16,14 @@ const NAV_ITEMS = [
 
 function AppShell({ token, logout }) {
   const [activeTool, setActiveTool] = useState('resume-parser');
-  const [history, setHistory] = useState([]);
-  const [lastScanProfiles, setLastScanProfiles] = useState([]);
   const [user, setUser] = useState(null);
+  const [parserData, setParserData] = useState({
+    file: null,
+    jobDescription: '',
+    result: null
+  });
+  const [history, setHistory] = useState([]);
+  const [lastScanProfiles, setLastScanProfiles] = useState(null);
   const [theme, setTheme] = useState(() => {
     return document.documentElement.getAttribute('data-theme') || 'dark';
   });
@@ -43,7 +48,7 @@ function AppShell({ token, logout }) {
     } catch (e) { console.error(e); }
   };
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (newScanResult = null) => {
     try {
       const res = await fetch('http://localhost:8000/api/history', {
         headers: { Authorization: `Bearer ${token}` },
@@ -55,8 +60,17 @@ function AppShell({ token, logout }) {
         if (data.length > 0 && data[0].profiles) {
           setLastScanProfiles(data[0].profiles);
         }
+        
+        // If we just completed a scan, update parserData
+        if (newScanResult) {
+            setParserData(prev => ({ ...prev, result: newScanResult }));
+        }
       }
     } catch (e) { console.error(e); }
+  };
+
+  const handleParserStateChange = (newState) => {
+    setParserData(prev => ({ ...prev, ...newState }));
   };
 
   const getInitials = (name) =>
@@ -73,7 +87,14 @@ function AppShell({ token, logout }) {
       return <Profile user={user} history={history} />;
     }
     if (activeTool === 'resume-parser') {
-      return <ResumeParser token={token} onScanComplete={fetchHistory} />;
+      return (
+        <ResumeParser 
+          token={token} 
+          onScanComplete={fetchHistory} 
+          persistedData={parserData}
+          onStateChange={handleParserStateChange}
+        />
+      );
     }
     if (activeTool === 'ai-interviewer') {
       return <AIInterviewer token={token} />;
