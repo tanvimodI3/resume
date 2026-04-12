@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import ThemeToggle from './ThemeToggle';
 
 const NAV_LINKS = [
   { to: '/about', label: 'About' },
@@ -15,8 +16,7 @@ function Navbar({ isLoggedIn = false }) {
     <nav className="public-nav">
       <div className="public-nav-inner">
         <Link to={isLoggedIn ? '/dashboard' : '/about'} className="public-nav-logo">
-          <span className="logo-icon-small">⚡</span>
-          Resume<span className="logo-accent">AI</span>
+          ResumeAI
         </Link>
 
         {isLoggedIn && (
@@ -25,7 +25,7 @@ function Navbar({ isLoggedIn = false }) {
               <Link
                 key={link.to}
                 to={link.to}
-                className={`public-nav-link ${location.pathname === link.to ? 'active' : ''}`}
+                className={`public-nav-link${location.pathname === link.to ? ' active' : ''}`}
               >
                 {link.label}
               </Link>
@@ -34,6 +34,7 @@ function Navbar({ isLoggedIn = false }) {
         )}
 
         <div className="public-nav-actions">
+          <ThemeToggle />
           {isLoggedIn ? (
             <Link to="/dashboard" className="nav-signup-btn">Dashboard →</Link>
           ) : (

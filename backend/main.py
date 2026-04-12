@@ -208,6 +208,13 @@ def signup(user: schemas.UserCreate, session: Session = Depends(db.get_db)):
         session.rollback()
         raise HTTPException(status_code=400, detail="Email already registered")
 
+from starlette.middleware.sessions import SessionMiddleware
+import os
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET", "supersecretkey")
+)
 
 @app.post("/auth/token", response_model=schemas.Token, tags=["Auth"])
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(db.get_db)):
