@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import Login from './components/Login';
-import Signup from './components/Signup';
-import Dashboard from './components/Dashboard';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import LandingPage from './components/LandingPage';
+import AppShell from './components/AppShell';
+import About from './components/pages/About';
+import Contact from './components/pages/Contact';
+import Policy from './components/pages/Policy';
+import Docs from './components/pages/Docs';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -17,24 +20,29 @@ function App() {
     setToken(null);
   };
 
+  const isLoggedIn = !!token;
+
+  // Wrap public pages to pass isLoggedIn to their internal Navbar
+  const withAuth = (Component) => <Component isLoggedIn={isLoggedIn} />;
+
   return (
     <Router>
       <Routes>
-        <Route 
-          path="/" 
-          element={token ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
+        {/* Landing page with scroll-to-auth — redirects to dashboard if logged in */}
+        <Route
+          path="/"
+          element={token ? <Navigate to="/dashboard" /> : <LandingPage setToken={saveToken} />}
         />
-        <Route 
-          path="/login" 
-          element={<Login setToken={saveToken} />} 
-        />
-        <Route 
-          path="/signup" 
-          element={<Signup />} 
-        />
-        <Route 
-          path="/dashboard" 
-          element={token ? <Dashboard token={token} logout={logout} /> : <Navigate to="/login" />} 
+        {/* Keep legacy routes so direct URLs still work */}
+        <Route path="/login" element={token ? <Navigate to="/dashboard" /> : <LandingPage setToken={saveToken} />} />
+        <Route path="/signup" element={token ? <Navigate to="/dashboard" /> : <LandingPage setToken={saveToken} />} />
+        <Route path="/about" element={token ? withAuth(About) : <Navigate to="/" />} />
+        <Route path="/contact" element={token ? withAuth(Contact) : <Navigate to="/" />} />
+        <Route path="/policy" element={token ? withAuth(Policy) : <Navigate to="/" />} />
+        <Route path="/docs" element={token ? withAuth(Docs) : <Navigate to="/" />} />
+        <Route
+          path="/dashboard/*"
+          element={token ? <AppShell token={token} logout={logout} /> : <Navigate to="/" />}
         />
       </Routes>
     </Router>

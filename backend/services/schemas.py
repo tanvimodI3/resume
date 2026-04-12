@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 
 class UserCreate(BaseModel):
     name: str
@@ -27,6 +27,7 @@ class ScanResultCreate(BaseModel):
     phone: Optional[str] = None
     experience: str
     profiles: List[str]
+    skills: Optional[List[str]] = []
     match_score: float
     missing_skills: List[str]
     strengths: List[str]

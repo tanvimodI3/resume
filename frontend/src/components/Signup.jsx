@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import Navbar from './Navbar';
 
 function Signup() {
   const [name, setName] = useState('');
@@ -37,8 +38,10 @@ function Signup() {
   };
 
   return (
-    <div className="auth-container">
-      <div className="glass-panel auth-box">
+    <>
+      <Navbar />
+      <div className="auth-container">
+        <div className="glass-panel auth-box">
         <h1>Create Admin</h1>
         {error && <div style={{ color: 'var(--error)', marginBottom: '1rem', textAlign: 'center' }}>{error}</div>}
         <form onSubmit={handleSubmit}>
@@ -76,8 +79,9 @@ function Signup() {
         <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.875rem' }}>
           Already have an account? <Link to="/login">Login</Link>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

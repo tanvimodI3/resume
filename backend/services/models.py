@@ -23,6 +23,7 @@ class ScanResult(Base):
     phone = Column(String)
     experience = Column(String)
     profiles = Column(JSON)
+    skills = Column(JSON)
     match_score = Column(Float)
     missing_skills = Column(JSON)
     strengths = Column(JSON)

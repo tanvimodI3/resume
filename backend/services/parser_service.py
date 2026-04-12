@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import concurrent.futures
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -37,6 +38,7 @@ def _ask_cohere(prompt: str) -> str:
         text = text[:-3].strip()
     return text
 
+
 def extract_text_from_file(file_path: str) -> str:
     ext = file_path.lower().split('.')[-1]
     if ext == 'pdf':
@@ -72,7 +74,8 @@ def extract_hyperlinks_from_pdf(file_path: str) -> list:
 def extract_info_with_cohere(resume_text: str) -> dict:
     prompt = f"""
 You are an expert resume parser. Extract the following fields from the resume below.
-Return ONLY a valid JSON object. No explanation, no markdown, no code fences. Just raw JSON.
+Return ONLY a valid JSON object. NO markdown fences, NO explanation. Just raw JSON.
+
 Fields to extract:
 - "name": Full name of the candidate (string)
 - "email": Email address (string or null)
@@ -87,9 +90,9 @@ Fields to extract:
   5. If only a label with no URL is found, skip it entirely and return empty list
 
 RESUME TEXT:
-{resume_text[:4000]}
+{resume_text[:3000]}
 """
-    raw = _ask_cohere(prompt)
+    raw = _ask_cohere_fast(prompt)
     try:
         json_match = re.search(r"\{.*\}", raw, re.DOTALL)
         if json_match:
@@ -104,10 +107,12 @@ def chunk_text(text: str) -> list[str]:
     splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50, separators=["\n\n", "\n", " ", ""])
     return splitter.split_text(text)
 
+
 def build_vectorstore(chunks: list[str], embedding_model) -> Chroma:
     from langchain_core.documents import Document
     docs = [Document(page_content=c) for c in chunks]
     return Chroma.from_documents(documents=docs, embedding=embedding_model)
+
 
 def compute_embedding_score(vectorstore: Chroma, jd_text: str, k: int = 5) -> float:
     results = vectorstore.similarity_search_with_score(jd_text, k=k)
@@ -116,22 +121,25 @@ def compute_embedding_score(vectorstore: Chroma, jd_text: str, k: int = 5) -> fl
     total = sum(max(0.0, (1.0 - (score / 2.0)) * 100) for _, score in results)
     return round(total / len(results), 2)
 
+
 def evaluate_with_cohere(resume_text: str, jd_text: str) -> dict:
     prompt = f"""
 You are a senior ATS evaluator. Evaluate how well the candidate's resume matches the job description below.
+Score strictly between 0-100 based on core technical skill requirements. 
+Penalize the score heavily if core skills from the Job Description are missing. Reward the score for exact matches in their experience.
 Respond ONLY with a valid JSON object. No explanation. No markdown.
 Format:
 {{
-  "match_percentage": <integer 0-100>,
-  "missing_skills": ["skill1", "skill2"],
-  "strengths": ["strength1", "strength2"]
+"match_percentage": <integer 0-100>,
+"missing_skills": ["skill1", "skill2"],
+"strengths": ["strength1", "strength2"]
 }}
 
 JOB DESCRIPTION:
 {jd_text.strip()}
 
 RESUME:
-{resume_text[:3500]}
+{resume_text[:3000]}
 """
     raw = _ask_cohere(prompt)
     try:
@@ -143,7 +151,8 @@ RESUME:
     return {"match_percentage": 0, "missing_skills": [], "strengths": []}
 
 def compute_final_score(embedding_score: float, llm_score: float) -> float:
-    return round(0.7 * embedding_score + 0.3 * llm_score, 2)
+    return round(0.3 * embedding_score + 0.7 * llm_score, 2)
+
 
 def parse_resume(file_path: str, job_description: str) -> dict:
     """End-to-end pipeline."""
@@ -198,13 +207,14 @@ def parse_resume(file_path: str, job_description: str) -> dict:
     llm_score = float(llm_eval.get("match_percentage", 0))
     
     final_score = compute_final_score(embedding_score, llm_score)
-    
-    return {
+
+    result = {
         "name": info.get("name", "Not found"),
         "email": info.get("email"),
         "phone": info.get("phone"),
         "experience": info.get("experience", "Unknown"),
         "profiles": profiles,
+        "skills": skills,
         "github_url": github_url,
         "leetcode_url": leetcode_url,
         "match_score": final_score,

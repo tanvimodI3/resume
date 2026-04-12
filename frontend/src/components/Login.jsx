@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import Navbar from './Navbar';
 
 function Login({ setToken }) {
   const [email, setEmail] = useState('');
@@ -39,8 +40,10 @@ function Login({ setToken }) {
   };
 
   return (
-    <div className="auth-container">
-      <div className="glass-panel auth-box">
+    <>
+      <Navbar />
+      <div className="auth-container">
+        <div className="glass-panel auth-box">
         <h1>Welcome Back</h1>
         {error && <div style={{ color: 'var(--error)', marginBottom: '1rem', textAlign: 'center' }}>{error}</div>}
         <form onSubmit={handleSubmit}>
@@ -69,8 +72,9 @@ function Login({ setToken }) {
         <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.875rem' }}>
           Don't have an account? <Link to="/signup">Sign up</Link>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
