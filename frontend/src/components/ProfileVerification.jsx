@@ -238,7 +238,7 @@ function GitHubCard({ data, delay }) {
     <div className="glass-panel pv-card pv-github-card" style={{ animationDelay: delay }}>
       {/* Header */}
       <div className="pv-card-header">
-        <Github size={20} />
+        <GitBranch size={20} />
         <span className="pv-platform-label">GitHub</span>
         <a href={user.html_url} target="_blank" rel="noreferrer" className="pv-ext-link">
           <ExternalLink size={13} />
