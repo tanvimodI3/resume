@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text, JSON, DateTime
+from sqlalchemy import Column, Integer, String, Float, Text, JSON, DateTime, ForeignKey
 from sqlalchemy.sql import func
 import sys
 import os
@@ -16,7 +16,7 @@ class User(Base):
 class ScanResult(Base):
     __tablename__ = "candidate_details"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     filename = Column(String)
     name = Column(String)
     email = Column(String)
@@ -28,3 +28,5 @@ class ScanResult(Base):
     missing_skills = Column(JSON)
     strengths = Column(JSON)
     job_description = Column(Text)
+    github_url = Column(String, nullable=True)
+    leetcode_url = Column(String, nullable=True)

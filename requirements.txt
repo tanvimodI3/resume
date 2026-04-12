@@ -3,8 +3,8 @@ langchain-community
 langchain-text-splitters
 langchain-chroma
 langchain-cohere
-cohere
 langchain-google-genai
+google-generativeai
 google-genai
 pymupdf
 python-dotenv
@@ -15,9 +15,12 @@ uvicorn
 pydantic
 python-multipart
 psycopg2
+sqlalchemy
+python-jose[cryptography]
+passlib[bcrypt]
+cohere
+aiohttp
 scikit-learn
 numpy
 redis
 PyJWT
-passlib
-sqlalchemy

@@ -32,6 +32,8 @@ class ScanResultCreate(BaseModel):
     missing_skills: List[str]
     strengths: List[str]
     job_description: str
+    github_url: Optional[str] = None
+    leetcode_url: Optional[str] = None
 
 class ScanResultResponse(ScanResultCreate):
     id: int

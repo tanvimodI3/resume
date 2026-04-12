@@ -2,7 +2,7 @@ import os
 import sys
 import logging
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List
 
@@ -21,7 +21,7 @@ import uvicorn
 
 
 from backend import db
-from backend.services import models, schemas, auth, parser_service
+from backend.services import models, schemas, auth, parser_service, github_fetcher, leetcode_fetcher
 from backend.oauth import oauth
 from services.linkedin_extraction import get_full_candidate_profile
 from langchain_cohere import CohereEmbeddings
@@ -35,7 +35,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────
-# PYDANTIC MODELS (from api.py)
+# PYDANTIC MODELS
 # ─────────────────────────────────────────────────────────
 
 class NormalizedSkill(BaseModel):
@@ -90,50 +90,38 @@ class TextExtractionResponse(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────
-# INTERNAL HELPER FOR PIPELINE LOGIC
+# INTERNAL HELPER
 # ─────────────────────────────────────────────────────────
 
 def _run_full_pipeline(resume_text: str, job_description: str) -> dict:
-    """
-    Runs the full matching pipeline and returns structured data.
-    Uses logic from parser_service.
-    """
     try:
-        # Step 1 — Extract candidate info
-        logger.info("[1/8] Extracting candidate info (Cohere)...")
+        logger.info("[1/8] Extracting candidate info...")
         info = parser_service.extract_info_with_cohere(resume_text)
 
-        # Step 2 — Extract skills
-        logger.info("[2/8] Extracting skills (Cohere)...")
+        logger.info("[2/8] Extracting skills...")
         raw_skills = parser_service.extract_skills_with_cohere(resume_text)
 
-        # Step 3 — Normalize skills
-        logger.info("[3/8] Normalizing skills (Cohere)...")
+        logger.info("[3/8] Normalizing skills...")
         normalized_skills = parser_service.normalize_skills_with_cohere(raw_skills)
 
-        # Step 4 — Chunk resume text
         logger.info("[4/8] Chunking resume text...")
         chunks = parser_service.chunk_text(resume_text)
 
-        # Step 5 — Embed + store in ChromaDB
-        logger.info("[5/8] Generating embeddings + storing in ChromaDB...")
+        logger.info("[5/8] Generating embeddings...")
         embedding_model = CohereEmbeddings(
             model="embed-english-v3.0",
             cohere_api_key=os.getenv("COHERE_API_KEY")
         )
         vectorstore = parser_service.build_vectorstore(chunks, embedding_model)
 
-        # Step 6 — Embedding similarity score
-        logger.info("[6/8] Computing embedding similarity score...")
+        logger.info("[6/8] Computing embedding score...")
         k = min(5, len(chunks)) if len(chunks) > 0 else 1
         embedding_score = parser_service.compute_embedding_score(vectorstore, job_description, k=k)
 
-        # Step 7 — Cohere LLM evaluation
-        logger.info("[7/8] Running Cohere final evaluation...")
+        logger.info("[7/8] Running LLM evaluation...")
         llm_eval = parser_service.evaluate_with_cohere(resume_text, job_description)
         llm_score = float(llm_eval.get("match_percentage", 0))
 
-        # Step 8 — Final score
         logger.info("[8/8] Computing final score...")
         final_score = parser_service.compute_final_score(embedding_score, llm_score)
 
@@ -163,16 +151,21 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize DB tables
 models.Base.metadata.create_all(bind=db.engine)
 
 
@@ -182,11 +175,9 @@ models.Base.metadata.create_all(bind=db.engine)
 
 @app.get("/", tags=["Info"])
 async def root():
-    """Root endpoint - API information."""
     return {
         "name": "ATS Resume-Job Matcher API",
         "version": "1.0.0",
-        "description": "Cohere-powered resume to job matching system",
         "docs": "/docs",
         "health": "/health"
     }
@@ -194,18 +185,10 @@ async def root():
 
 @app.get("/health", response_model=HealthCheckResponse, tags=["Health"])
 async def health_check():
-    """Health check endpoint."""
-    try:
-        return HealthCheckResponse(
-            status="healthy",
-            timestamp=datetime.utcnow()
-        )
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        raise HTTPException(status_code=500, detail="Health check failed")
+    return HealthCheckResponse(status="healthy", timestamp=datetime.utcnow())
 
 
-# ── Auth Endpoints (from main.py & api.py) ───────────────
+# ── Auth ─────────────────────────────────────────────────
 
 @app.post("/auth/signup", response_model=schemas.UserResponse, tags=["Auth"])
 def signup(user: schemas.UserCreate, session: Session = Depends(db.get_db)):
@@ -230,7 +213,8 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), ses
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = auth.create_access_token(data={"sub": user.email})
+    access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -252,7 +236,6 @@ async def google_callback(request: Request, session: Session = Depends(db.get_db
 
     user = session.query(models.User).filter(models.User.email == email).first()
     if not user:
-        # Create dummy user for OAuth
         user = models.User(name=name, email=email, password="oauth")
         session.add(user)
         session.commit()
@@ -261,7 +244,7 @@ async def google_callback(request: Request, session: Session = Depends(db.get_db
     return RedirectResponse(os.getenv("FRONTEND_URL", "http://localhost:3000") + "/login")
 
 
-# ── DB-backed Resume Parse and History (from main.py) ────
+# ── Resume Parse ─────────────────────────────────────────
 
 @app.post("/api/parse", response_model=schemas.ScanResultResponse, tags=["Matching"])
 async def parse_resume_endpoint(
@@ -273,15 +256,18 @@ async def parse_resume_endpoint(
     temp_dir = "temp_uploads"
     os.makedirs(temp_dir, exist_ok=True)
     temp_path = os.path.join(temp_dir, file.filename)
-    
+
     try:
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        
-        # Run AI Parser from parser_service natively
-        result_dict = parser_service.parse_resume(temp_path, job_description)
-        
-        # Save to DB
+
+        try:
+            result_dict = parser_service.parse_resume(temp_path, job_description)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=str(e))
+
         scan_result = models.ScanResult(
             user_id=current_user.id,
             filename=file.filename,
@@ -294,7 +280,9 @@ async def parse_resume_endpoint(
             match_score=result_dict.get("match_score", 0),
             missing_skills=result_dict.get("missing_skills", []),
             strengths=result_dict.get("strengths", []),
-            job_description=job_description
+            job_description=job_description,
+            github_url=result_dict.get("github_url"),
+            leetcode_url=result_dict.get("leetcode_url")
         )
         session.add(scan_result)
         session.commit()
@@ -305,38 +293,69 @@ async def parse_resume_endpoint(
             os.remove(temp_path)
 
 
+# ── Profile Verification ─────────────────────────────────
+
+@app.get("/github", tags=["Profile Verification"])
+async def github_details(
+    session: Session = Depends(db.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    scan_result = session.query(models.ScanResult).filter(
+        models.ScanResult.user_id == current_user.id
+    ).order_by(models.ScanResult.id.desc()).first()
+
+    if not scan_result or not scan_result.github_url:
+        return {"error": "No GitHub URL found"}
+
+    result = await github_fetcher.fetch_github_profile(scan_result.github_url)
+    return result
+
+
+@app.get("/leetcode", tags=["Profile Verification"])
+async def leetcode_details(
+    session: Session = Depends(db.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    scan_result = session.query(models.ScanResult).filter(
+        models.ScanResult.user_id == current_user.id
+    ).order_by(models.ScanResult.id.desc()).first()
+
+    if not scan_result or not scan_result.leetcode_url:
+        return {"error": "No LeetCode URL found"}
+
+    result = await leetcode_fetcher.fetch_leetcode_profile(scan_result.leetcode_url)
+    return result
+
+
+# ── History & Me ─────────────────────────────────────────
+
 @app.get("/api/history", response_model=List[schemas.ScanResultResponse], tags=["Matching"])
 def get_user_history(current_user: models.User = Depends(auth.get_current_user), session: Session = Depends(db.get_db)):
-    results = session.query(models.ScanResult).filter(models.ScanResult.user_id == current_user.id).order_by(models.ScanResult.id.desc()).all()
+    results = session.query(models.ScanResult).filter(
+        models.ScanResult.user_id == current_user.id
+    ).order_by(models.ScanResult.id.desc()).all()
     return results
+
 
 @app.get("/api/me", response_model=schemas.UserResponse)
 def get_me(current_user: models.User = Depends(auth.get_current_user)):
     return current_user
 
 
-# ─────────────────────────────────────────────────────────
-# AI INTERVIEWER ENDPOINTS
-# ─────────────────────────────────────────────────────────
+# ── AI Interviewer ────────────────────────────────────────
 
 @app.post("/api/interview/start")
 async def interview_start(
     file: UploadFile = File(...),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """
-    Upload resume PDF → parse with Gemini → generate 5 personalized questions.
-    Returns: { resume_data: {...}, questions: ["Q1", ..., "Q5"] }
-    """
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
-
-    # Only accept PDF for the interviewer
     if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported for AI Interviewer")
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
     contents = await file.read()
-    if len(contents) > 10 * 1024 * 1024:  # 10 MB limit
+    if len(contents) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 10 MB)")
 
     try:
@@ -354,11 +373,6 @@ async def interview_evaluate(
     data: dict,
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """
-    Submit one answer → get AI score + structured feedback.
-    Body: { question: str, answer: str }
-    Returns: { score, feedback, strengths, improvements, suggestions }
-    """
     question = data.get("question", "").strip()
     answer = data.get("answer", "").strip()
 
@@ -377,15 +391,8 @@ async def interview_report(
     data: dict,
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """
-    Submit all Q&A pairs → get final evaluation report.
-    Body: { qa_pairs: [{ question, answer, score }, ...] }
-    Returns: { overall_score, technical_skills, communication, problem_solving,
-               summary, strengths, areas_for_improvement }
-    """
     qa_pairs = data.get("qa_pairs", [])
-
-    if not qa_pairs or len(qa_pairs) == 0:
+    if not qa_pairs:
         raise HTTPException(status_code=400, detail="qa_pairs is required and must not be empty")
 
     try:
@@ -395,25 +402,17 @@ async def interview_report(
         raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
 
 
-# ── Core API Tool Endpoints (from api.py) ────────────────
+# ── Core API Tools ────────────────────────────────────────
 
 @app.post("/extract-text", response_model=TextExtractionResponse, tags=["Resume Processing"])
 async def extract_text_endpoint(file: UploadFile = File(...)):
     try:
         if file.filename is None:
             raise ValueError("Filename is required")
-        
-        logger.info(f"Extracting text from file: {file.filename}")
         contents = await file.read()
-        
-        MAX_FILE_SIZE = 10 * 1024 * 1024
-        if len(contents) > MAX_FILE_SIZE:
-            raise ValueError(f"File size exceeds {MAX_FILE_SIZE / 1024 / 1024}MB limit")
-        
+        if len(contents) > 10 * 1024 * 1024:
+            raise ValueError("File size exceeds 10MB limit")
         text = parser_service.extract_text_from_upload(contents, file.filename)
-        
-        logger.info(f"Successfully extracted {len(text)} characters")
-        
         return TextExtractionResponse(
             filename=file.filename,
             text=text,
@@ -421,56 +420,28 @@ async def extract_text_endpoint(file: UploadFile = File(...)):
             word_count=len(text.split())
         )
     except ValueError as e:
-        logger.warning(f"Validation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error extracting text: {str(e)}")
         raise HTTPException(status_code=500, detail="Error extracting text from file")
 
 
 @app.post("/extract-skills", response_model=SkillExtractionResponse, tags=["Resume Processing"])
 async def extract_skills_endpoint(resume_text: str = Query(..., min_length=10)):
     try:
-        if not resume_text or len(resume_text.strip()) < 10:
-            raise ValueError("Resume text must be at least 10 characters")
-        
-        logger.info("Extracting skills from resume...")
         raw_skills = parser_service.extract_skills_with_cohere(resume_text)
-        
-        logger.info("Normalizing skills...")
         normalized_skills_list = parser_service.normalize_skills_with_cohere(raw_skills)
-        
-        normalized_skills = [
-            NormalizedSkill(skill=s["skill"], category=s["category"])
-            for s in normalized_skills_list
-        ]
-        
-        logger.info(f"Extracted {len(raw_skills)} skills")
-        
-        return SkillExtractionResponse(
-            raw_skills=raw_skills,
-            normalized_skills=normalized_skills,
-            total_skills=len(raw_skills)
-        )
+        normalized_skills = [NormalizedSkill(skill=s["skill"], category=s["category"]) for s in normalized_skills_list]
+        return SkillExtractionResponse(raw_skills=raw_skills, normalized_skills=normalized_skills, total_skills=len(raw_skills))
     except ValueError as e:
-        logger.warning(f"Validation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error extracting skills: {str(e)}")
         raise HTTPException(status_code=500, detail="Error extracting skills")
 
 
 @app.post("/extract-candidate-info", response_model=CandidateInfoResponse, tags=["Resume Processing"])
 async def extract_candidate_info_endpoint(resume_text: str = Query(..., min_length=10)):
     try:
-        if not resume_text or len(resume_text.strip()) < 10:
-            raise ValueError("Resume text must be at least 10 characters")
-        
-        logger.info("Extracting candidate info...")
         info = parser_service.extract_info_with_cohere(resume_text)
-        
-        logger.info(f"Extracted info for: {info.get('name', 'Unknown')}")
-        
         return CandidateInfoResponse(
             name=info.get("name"),
             email=info.get("email"),
@@ -479,10 +450,8 @@ async def extract_candidate_info_endpoint(resume_text: str = Query(..., min_leng
             profiles=info.get("profiles", [])
         )
     except ValueError as e:
-        logger.warning(f"Validation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error extracting candidate info: {str(e)}")
         raise HTTPException(status_code=500, detail="Error extracting candidate information")
 
 
@@ -492,59 +461,16 @@ async def match_resume_to_job_endpoint(
     job_description: str = Query(..., min_length=10)
 ):
     try:
-        if not resume_text or len(resume_text.strip()) < 10:
-            raise ValueError("Resume text must be at least 10 characters")
-        if not job_description or len(job_description.strip()) < 10:
-            raise ValueError("Job description must be at least 10 characters")
-        
-        logger.info("Starting resume-to-job matching...")
         result = _run_full_pipeline(resume_text, job_description)
-        
-        candidate_info = CandidateInfoResponse(
-            name=result["candidate_info"].get("name"),
-            email=result["candidate_info"].get("email"),
-            phone=result["candidate_info"].get("phone"),
-            experience=result["candidate_info"].get("experience"),
-            profiles=result["candidate_info"].get("profiles", [])
-        )
-        
-        normalized_skills = [
-            NormalizedSkill(skill=s["skill"], category=s["category"])
-            for s in result["normalized_skills"]
-        ]
-        
-        skills_response = SkillExtractionResponse(
-            raw_skills=result["raw_skills"],
-            normalized_skills=normalized_skills,
-            total_skills=len(result["raw_skills"])
-        )
-        
-        scores = MatchScore(
-            embedding_score=result["embedding_score"],
-            llm_score=result["llm_score"],
-            final_score=result["final_score"]
-        )
-        
-        llm_eval = LLMEvaluation(
-            match_percentage=result["llm_eval"].get("match_percentage", 0),
-            missing_skills=result["llm_eval"].get("missing_skills", []),
-            strengths=result["llm_eval"].get("strengths", [])
-        )
-        
-        logger.info(f"Matching complete. Final score: {result['final_score']}%")
-        
-        return ResumeMatchResponse(
-            candidate_info=candidate_info,
-            skills=skills_response,
-            scores=scores,
-            llm_evaluation=llm_eval,
-            processed_at=datetime.utcnow()
-        )
+        candidate_info = CandidateInfoResponse(**{k: result["candidate_info"].get(k) for k in ["name", "email", "phone", "experience"]}, profiles=result["candidate_info"].get("profiles", []))
+        normalized_skills = [NormalizedSkill(skill=s["skill"], category=s["category"]) for s in result["normalized_skills"]]
+        skills_response = SkillExtractionResponse(raw_skills=result["raw_skills"], normalized_skills=normalized_skills, total_skills=len(result["raw_skills"]))
+        scores = MatchScore(embedding_score=result["embedding_score"], llm_score=result["llm_score"], final_score=result["final_score"])
+        llm_eval = LLMEvaluation(match_percentage=result["llm_eval"].get("match_percentage", 0), missing_skills=result["llm_eval"].get("missing_skills", []), strengths=result["llm_eval"].get("strengths", []))
+        return ResumeMatchResponse(candidate_info=candidate_info, skills=skills_response, scores=scores, llm_evaluation=llm_eval, processed_at=datetime.utcnow())
     except ValueError as e:
-        logger.warning(f"Validation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error in matching: {str(e)}")
         raise HTTPException(status_code=500, detail="Error performing match")
 
 
@@ -556,60 +482,20 @@ async def match_resume_file_to_job_endpoint(
     try:
         if file.filename is None:
             raise ValueError("Filename is required")
-        
-        logger.info(f"Processing resume file: {file.filename}")
         contents = await file.read()
-        
-        MAX_FILE_SIZE = 10 * 1024 * 1024
-        if len(contents) > MAX_FILE_SIZE:
-            raise ValueError(f"File size exceeds {MAX_FILE_SIZE / 1024 / 1024}MB limit")
-        
+        if len(contents) > 10 * 1024 * 1024:
+            raise ValueError("File size exceeds 10MB limit")
         resume_text = parser_service.extract_text_from_upload(contents, file.filename)
         result = _run_full_pipeline(resume_text, job_description)
-        
-        candidate_info = CandidateInfoResponse(
-            name=result["candidate_info"].get("name"),
-            email=result["candidate_info"].get("email"),
-            phone=result["candidate_info"].get("phone"),
-            experience=result["candidate_info"].get("experience"),
-            profiles=result["candidate_info"].get("profiles", [])
-        )
-        
-        normalized_skills = [
-            NormalizedSkill(skill=s["skill"], category=s["category"])
-            for s in result["normalized_skills"]
-        ]
-        
-        skills_response = SkillExtractionResponse(
-            raw_skills=result["raw_skills"],
-            normalized_skills=normalized_skills,
-            total_skills=len(result["raw_skills"])
-        )
-        
-        scores = MatchScore(
-            embedding_score=result["embedding_score"],
-            llm_score=result["llm_score"],
-            final_score=result["final_score"]
-        )
-        
-        llm_eval = LLMEvaluation(
-            match_percentage=result["llm_eval"].get("match_percentage", 0),
-            missing_skills=result["llm_eval"].get("missing_skills", []),
-            strengths=result["llm_eval"].get("strengths", [])
-        )
-        
-        return ResumeMatchResponse(
-            candidate_info=candidate_info,
-            skills=skills_response,
-            scores=scores,
-            llm_evaluation=llm_eval,
-            processed_at=datetime.utcnow()
-        )
+        candidate_info = CandidateInfoResponse(**{k: result["candidate_info"].get(k) for k in ["name", "email", "phone", "experience"]}, profiles=result["candidate_info"].get("profiles", []))
+        normalized_skills = [NormalizedSkill(skill=s["skill"], category=s["category"]) for s in result["normalized_skills"]]
+        skills_response = SkillExtractionResponse(raw_skills=result["raw_skills"], normalized_skills=normalized_skills, total_skills=len(result["raw_skills"]))
+        scores = MatchScore(embedding_score=result["embedding_score"], llm_score=result["llm_score"], final_score=result["final_score"])
+        llm_eval = LLMEvaluation(match_percentage=result["llm_eval"].get("match_percentage", 0), missing_skills=result["llm_eval"].get("missing_skills", []), strengths=result["llm_eval"].get("strengths", []))
+        return ResumeMatchResponse(candidate_info=candidate_info, skills=skills_response, scores=scores, llm_evaluation=llm_eval, processed_at=datetime.utcnow())
     except ValueError as e:
-        logger.warning(f"Validation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error in file matching: {str(e)}")
         raise HTTPException(status_code=500, detail="Error processing resume file")
 
 
@@ -619,76 +505,24 @@ async def batch_match_endpoint(
     job_description: str = Query(..., min_length=10)
 ):
     try:
-        if not job_description or len(job_description.strip()) < 10:
-            raise ValueError("Job description must be at least 10 characters")
-        if not files or len(files) == 0:
-            raise ValueError("At least one resume file is required")
-        
-        logger.info(f"Starting batch matching for {len(files)} resumes...")
         results = []
         for file in files:
             try:
                 if file.filename is None:
                     continue
-                
                 contents = await file.read()
-                MAX_FILE_SIZE = 10 * 1024 * 1024
-                if len(contents) > MAX_FILE_SIZE:
+                if len(contents) > 10 * 1024 * 1024:
                     continue
-                
                 resume_text = parser_service.extract_text_from_upload(contents, file.filename)
                 result = _run_full_pipeline(resume_text, job_description)
-                
-                candidate_info = CandidateInfoResponse(
-                    name=result["candidate_info"].get("name"),
-                    email=result["candidate_info"].get("email"),
-                    phone=result["candidate_info"].get("phone"),
-                    experience=result["candidate_info"].get("experience"),
-                    profiles=result["candidate_info"].get("profiles", [])
-                )
-                
-                normalized_skills = [
-                    NormalizedSkill(skill=s["skill"], category=s["category"])
-                    for s in result["normalized_skills"]
-                ]
-                
-                skills_response = SkillExtractionResponse(
-                    raw_skills=result["raw_skills"],
-                    normalized_skills=normalized_skills,
-                    total_skills=len(result["raw_skills"])
-                )
-                
-                scores = MatchScore(
-                    embedding_score=result["embedding_score"],
-                    llm_score=result["llm_score"],
-                    final_score=result["final_score"]
-                )
-                
-                llm_eval = LLMEvaluation(
-                    match_percentage=result["llm_eval"].get("match_percentage", 0),
-                    missing_skills=result["llm_eval"].get("missing_skills", []),
-                    strengths=result["llm_eval"].get("strengths", [])
-                )
-                
-                results.append({
-                    "filename": file.filename,
-                    "status": "success",
-                    "match": ResumeMatchResponse(
-                        candidate_info=candidate_info,
-                        skills=skills_response,
-                        scores=scores,
-                        llm_evaluation=llm_eval,
-                        processed_at=datetime.utcnow()
-                    )
-                })
+                candidate_info = CandidateInfoResponse(**{k: result["candidate_info"].get(k) for k in ["name", "email", "phone", "experience"]}, profiles=result["candidate_info"].get("profiles", []))
+                normalized_skills = [NormalizedSkill(skill=s["skill"], category=s["category"]) for s in result["normalized_skills"]]
+                skills_response = SkillExtractionResponse(raw_skills=result["raw_skills"], normalized_skills=normalized_skills, total_skills=len(result["raw_skills"]))
+                scores = MatchScore(embedding_score=result["embedding_score"], llm_score=result["llm_score"], final_score=result["final_score"])
+                llm_eval = LLMEvaluation(match_percentage=result["llm_eval"].get("match_percentage", 0), missing_skills=result["llm_eval"].get("missing_skills", []), strengths=result["llm_eval"].get("strengths", []))
+                results.append({"filename": file.filename, "status": "success", "match": ResumeMatchResponse(candidate_info=candidate_info, skills=skills_response, scores=scores, llm_evaluation=llm_eval, processed_at=datetime.utcnow())})
             except Exception as e:
-                logger.error(f"Error matching {file.filename}: {str(e)}")
-                results.append({
-                    "filename": file.filename,
-                    "status": "error",
-                    "error": str(e)
-                })
-        
+                results.append({"filename": file.filename, "status": "error", "error": str(e)})
         return {
             "total_submitted": len(files),
             "total_processed": len([r for r in results if r["status"] == "success"]),
@@ -696,10 +530,8 @@ async def batch_match_endpoint(
             "results": results
         }
     except ValueError as e:
-        logger.warning(f"Validation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error in batch_match: {str(e)}")
         raise HTTPException(status_code=500, detail="Error in batch matching")
     
 @app.get("/candidate/linkedin")
@@ -748,40 +580,29 @@ async def analyze_profiles_endpoint(data: ProfileAnalysisRequest):
         raise HTTPException(status_code=500, detail="Error analyzing profiles")
 
 
+# ── Exception Handlers ────────────────────────────────────
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
-    """Handle HTTP exceptions."""
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"error": exc.detail, "status_code": exc.status_code}
-    )
+    return JSONResponse(status_code=exc.status_code, content={"error": exc.detail, "status_code": exc.status_code})
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
-    """Handle general exceptions."""
     logger.error(f"Unhandled exception: {str(exc)}")
-    return JSONResponse(
-        status_code=500,
-        content={"error": "Internal server error", "status_code": 500}
-    )
+    return JSONResponse(status_code=500, content={"error": "Internal server error", "status_code": 500})
+
 
 if __name__ == "__main__":
-    logger.info("FastAPI Docs available at: http://localhost:8000/docs")
-    logger.info("ReDoc available at: http://localhost:8000/redoc")
     default_port = int(os.getenv("PORT", "8000"))
     for port in (default_port, default_port + 1, default_port + 2):
         try:
             uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
             break
         except OSError as err:
-            message = str(err).lower()
-            if "address already in use" in message or "only one usage" in message:
-                logger.warning(f"Port {port} is already in use. Trying next port...")
+            if "address already in use" in str(err).lower() or "only one usage" in str(err).lower():
                 continue
             raise
     else:
         logger.error("Unable to bind to any available port.")
         raise RuntimeError("Unable to bind to any available port.")
-    
-
