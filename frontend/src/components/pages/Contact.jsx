@@ -1,5 +1,6 @@
 import React from 'react';
 import Navbar from '../Navbar';
+import { FileText, Target, BarChart3, Lock, Hand, Mail } from 'lucide-react';
 
 const TEAM = [
   { name: 'Manthan Patel', role: 'Founder & Lead Engineer', email: 'manthan@resumeai.dev', initial: 'MP' },
@@ -10,10 +11,10 @@ const TEAM = [
 ];
 
 const SERVICES = [
-  { icon: '📄', title: 'Resume Parsing', desc: 'AI-powered extraction of candidate data from any resume format.' },
-  { icon: '🎯', title: 'JD Matching', desc: 'Embedding + LLM dual-evaluation to score resume-to-job-description fit.' },
-  { icon: '📊', title: 'Skill Gap Analysis', desc: 'Identify exactly which skills a candidate has and what is missing.' },
-  { icon: '🔐', title: 'Secure Data Handling', desc: 'Files are processed and immediately deleted — never stored.' },
+  { icon: FileText, title: 'Resume Parsing', desc: 'AI-powered extraction of candidate data from any resume format.' },
+  { icon: Target, title: 'JD Matching', desc: 'Embedding + LLM dual-evaluation to score resume-to-job-description fit.' },
+  { icon: BarChart3, title: 'Skill Gap Analysis', desc: 'Identify exactly which skills a candidate has and what is missing.' },
+  { icon: Lock, title: 'Secure Data Handling', desc: 'Files are processed and immediately deleted — never stored.' },
 ];
 
 function Contact({ isLoggedIn }) {
@@ -23,7 +24,7 @@ function Contact({ isLoggedIn }) {
       <div className="public-page">
         <div className="public-page-content">
           <div className="page-hero">
-            <div className="page-hero-badge">👋 Get in Touch</div>
+            <div className="page-hero-badge"><Hand size={16} /> Get in Touch</div>
             <h1>Meet the Team</h1>
             <p>
               We're a passionate team of engineers building smarter hiring tools. Reach out to us
@@ -39,7 +40,7 @@ function Contact({ isLoggedIn }) {
                 <div className="contact-info">
                   <h4>{member.name}</h4>
                   <div className="contact-role">{member.role}</div>
-                  <div className="contact-email">✉ {member.email}</div>
+                  <div className="contact-email"><Mail size={14} /> {member.email}</div>
                 </div>
               </div>
             ))}
@@ -49,7 +50,7 @@ function Contact({ isLoggedIn }) {
           <div className="service-list">
             {SERVICES.map((s) => (
               <div key={s.title} className="service-item">
-                <div className="service-icon">{s.icon}</div>
+                <div className="service-icon"><s.icon size={20} /></div>
                 <div>
                   <h4>{s.title}</h4>
                   <p>{s.desc}</p>

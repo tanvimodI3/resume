@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Zap } from 'lucide-react';
 
 const NAV_LINKS = [
   { to: '/about', label: 'About' },
@@ -15,7 +16,7 @@ function Navbar({ isLoggedIn = false }) {
     <nav className="public-nav">
       <div className="public-nav-inner">
         <Link to={isLoggedIn ? '/dashboard' : '/about'} className="public-nav-logo">
-          <span className="logo-icon-small">⚡</span>
+          <span className="logo-icon-small"><Zap size={18} /></span>
           Resume<span className="logo-accent">AI</span>
         </Link>
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import Navbar from '../Navbar';
+import { Lock } from 'lucide-react';
 
 const POLICIES = [
   {
@@ -94,7 +95,7 @@ function Policy({ isLoggedIn }) {
       <div className="public-page">
         <div className="public-page-content">
           <div className="page-hero">
-            <div className="page-hero-badge">🔒 Legal</div>
+            <div className="page-hero-badge"><Lock size={16} /> Legal</div>
             <h1>Privacy Policy</h1>
             <p>
               Last updated: April 2026. We are committed to transparency about how your data is

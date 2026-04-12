@@ -1,5 +1,6 @@
 import React from 'react';
 import Navbar from '../Navbar';
+import { BookOpen } from 'lucide-react';
 
 function Docs({ isLoggedIn }) {
   return (
@@ -8,7 +9,7 @@ function Docs({ isLoggedIn }) {
       <div className="public-page">
         <div className="public-page-content">
           <div className="page-hero">
-            <div className="page-hero-badge">📖 Developer Docs</div>
+            <div className="page-hero-badge"><BookOpen size={16} /> Developer Docs</div>
             <h1>API Documentation</h1>
             <p>
               ResumeAI exposes a RESTful FastAPI backend. All authenticated endpoints require

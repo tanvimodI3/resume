@@ -44,7 +44,7 @@ function Login({ setToken }) {
       <Navbar />
       <div className="auth-container">
         <div className="glass-panel auth-box">
-        <h1>Welcome Back</h1>
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontStyle: 'normal !important', color: '#fff' }}>Welcome Back</h1>
         {error && <div style={{ color: 'var(--error)', marginBottom: '1rem', textAlign: 'center' }}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
