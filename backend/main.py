@@ -15,12 +15,12 @@ from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, Field
 
 import uvicorn
-
 import db
 from services import models, schemas, auth, parser_service
-from services.linkedin_extraction import get_full_candidate_profile
 from oauth import oauth
+from services.linkedin_extraction import get_full_candidate_profile
 from langchain_cohere import CohereEmbeddings
+from services import interviewer_service
 
 # ─────────────────────────────────────────────────────────
 # LOGGING
@@ -636,21 +636,42 @@ async def general_exception_handler(request, exc):
     }
 
 if __name__ == "__main__":
-    logger.info("FastAPI Docs available at: http://localhost:8000/docs")
-    logger.info("ReDoc available at: http://localhost:8000/redoc")
+    logger.info("=" * 60)
+    logger.info("Starting Resume Job Verification API...")
+    logger.info("=" * 60)
+    
     default_port = int(os.getenv("PORT", "8000"))
+    port_found = False
+    
     for port in (default_port, default_port + 1, default_port + 2):
         try:
-            uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
+            logger.info(f"Attempting to bind to port {port}...")
+            logger.info(f"FastAPI Docs: http://localhost:{port}/docs")
+            logger.info(f"ReDoc: http://localhost:{port}/redoc")
+            logger.info("=" * 60)
+            
+            uvicorn.run(
+                app,
+                host="0.0.0.0",
+                port=port,
+                reload=False,
+                log_level="info"
+            )
+            port_found = True
             break
+            
         except OSError as err:
             message = str(err).lower()
             if "address already in use" in message or "only one usage" in message:
                 logger.warning(f"Port {port} is already in use. Trying next port...")
                 continue
-            raise
-    else:
-        logger.error("Unable to bind to any available port.")
-        raise RuntimeError("Unable to bind to any available port.")
+            else:
+                logger.error(f"Unexpected error: {err}")
+                raise
     
-
+    if not port_found:
+        logger.error(
+            f"Unable to bind to any available port. "
+            f"Tried ports: {default_port}, {default_port + 1}, {default_port + 2}"
+        )
+        sys.exit(1)

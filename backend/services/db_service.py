@@ -1,4 +1,4 @@
-from backend.db import get_connection
+from db import get_connection
 import psycopg2
 
 def save_candidate_data(name, email, score, pdf_url):
