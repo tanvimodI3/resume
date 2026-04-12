@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Navbar from './Navbar';
 import ThemeToggle from './ThemeToggle';
@@ -10,6 +10,16 @@ function Login({ setToken }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    if (token) {
+      setToken(token);
+      navigate('/dashboard');
+    }
+  }, [location, setToken, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

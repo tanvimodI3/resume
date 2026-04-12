@@ -253,7 +253,11 @@ async def google_callback(request: Request, session: Session = Depends(db.get_db
         session.commit()
         session.refresh(user)
 
-    return RedirectResponse(os.getenv("FRONTEND_URL", "http://localhost:3000") + "/login")
+    access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
+
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    return RedirectResponse(f"{frontend_url}/login?token={access_token}")
 
 
 # ── Resume Parse ─────────────────────────────────────────

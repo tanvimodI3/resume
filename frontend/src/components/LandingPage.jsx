@@ -221,6 +221,10 @@ function AuthPanel({ visible, setToken, theme, toggleTheme }) {
     }
   };
 
+  const handleGoogleLogin = () => {
+    window.location.href = "http://localhost:8000/auth/google";
+  };
+
   return (
     <motion.div
       className="lp-auth"
@@ -335,6 +339,37 @@ function AuthPanel({ visible, setToken, theme, toggleTheme }) {
                 </>
               )}
             </button>
+            
+            <div style={{ margin: "2rem 0", display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+              <span style={{ fontSize: "0.7rem", color: "var(--fg-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>or</span>
+              <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+            </div>
+
+            <button 
+              type="button" 
+              className="lp-google-btn" 
+              onClick={handleGoogleLogin}
+              style={{
+                width: "100%",
+                padding: "0.75rem",
+                borderRadius: "var(--radius-md)",
+                border: "1px solid var(--border)",
+                background: "transparent",
+                color: "var(--fg)",
+                fontFamily: "var(--font-ui)",
+                fontSize: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+            >
+              <img src="https://developers.google.com/identity/images/g-logo.png" width="18" alt="google" />
+              <span>Continue with Google</span>
+            </button>
           </form>
 
           <p className="lp-switch">
@@ -378,6 +413,14 @@ export default function LandingPage({ setToken }) {
       return () => clearTimeout(t);
     }
   }, [scrolled]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      setToken(token);
+    }
+  }, [setToken]);
 
   return (
     <>
