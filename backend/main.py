@@ -13,11 +13,17 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, Field
+
 import uvicorn
+
+
+
+
 
 from backend import db
 from backend.services import models, schemas, auth, parser_service
 from backend.oauth import oauth
+from services.linkedin_extraction import get_full_candidate_profile
 from langchain_cohere import CohereEmbeddings
 from backend.services import interviewer_service
 from backend.services import profile_service
@@ -695,6 +701,11 @@ async def batch_match_endpoint(
     except Exception as e:
         logger.error(f"Error in batch_match: {str(e)}")
         raise HTTPException(status_code=500, detail="Error in batch matching")
+    
+@app.get("/candidate/linkedin")
+def fetch_candidate(linkedin_url: str):
+    data = get_full_candidate_profile(linkedin_url)
+    return data
 
 
 # ─────────────────────────────────────────────────────────
@@ -772,3 +783,5 @@ if __name__ == "__main__":
     else:
         logger.error("Unable to bind to any available port.")
         raise RuntimeError("Unable to bind to any available port.")
+    
+
