@@ -197,7 +197,7 @@ function ResumeParser({ token, onScanComplete, persistedData, onStateChange }) {
         {loading && (
           <div className="glass-panel loading-panel">
             <h3 className="loading-title">AI is working…</h3>
-            <p className="loading-sub">This usually takes 15–30 seconds</p>
+            <p className="loading-sub">This usually takes 10 seconds</p>
 
             <div className="steps-list">
               {STEPS.map((step, idx) => {
