@@ -93,6 +93,11 @@ class TextExtractionResponse(BaseModel):
 # INTERNAL HELPER
 # ─────────────────────────────────────────────────────────
 
+import hashlib
+import copy
+from functools import lru_cache
+
+@lru_cache(maxsize=5)
 def _run_full_pipeline(resume_text: str, job_description: str) -> dict:
     try:
         logger.info("[1/8] Extracting candidate info...")

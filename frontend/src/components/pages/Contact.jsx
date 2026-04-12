@@ -2,11 +2,11 @@ import React from 'react';
 import Navbar from '../Navbar';
 
 const TEAM = [
-  { name: 'Manthan Patel', role: 'Founder & Lead Engineer', email: 'manthan@resumeai.dev', initial: 'MP' },
-  { name: 'Arjun Shah', role: 'AI / ML Engineer', email: 'arjun@resumeai.dev', initial: 'AS' },
-  { name: 'Priya Desai', role: 'Backend Developer', email: 'priya@resumeai.dev', initial: 'PD' },
-  { name: 'Neha Verma', role: 'Frontend Developer', email: 'neha@resumeai.dev', initial: 'NV' },
-  { name: 'Rohan Mehta', role: 'Product & QA', email: 'rohan@resumeai.dev', initial: 'RM' },
+  { name: 'Anannya', role: 'AI / ML Engineer', email: 'anannya@resumeai.dev', initial: 'A' },
+  { name: 'Yukta', role: 'Backend Developer', email: 'yukta@resumeai.dev', initial: 'Y' },
+  { name: 'Tanvi', role: 'Frontend Developer', email: 'tanvi@resumeai.dev', initial: 'T' },
+  { name: 'Liza', role: 'Product & QA', email: 'liza@resumeai.dev', initial: 'L' },
+  { name: 'Manthan', role: 'AI / ML Engineer', email: 'manthan@resumeai.dev', initial: 'MP' },
 ];
 
 const SERVICES = [

@@ -154,8 +154,25 @@ def compute_final_score(embedding_score: float, llm_score: float) -> float:
     return round(0.3 * embedding_score + 0.7 * llm_score, 2)
 
 
+import hashlib
+import copy
+
+_parse_cache = {}
+_parse_cache_keys = []
+
 def parse_resume(file_path: str, job_description: str) -> dict:
-    """End-to-end pipeline."""
+    """End-to-end pipeline with caching for the recent 5 requests."""
+    with open(file_path, "rb") as f:
+        file_bytes = f.read()
+    
+    file_hash = hashlib.sha256(file_bytes).hexdigest()
+    jd_hash = hashlib.sha256(job_description.encode('utf-8')).hexdigest()
+    cache_key = f"{file_hash}_{jd_hash}"
+
+    if cache_key in _parse_cache:
+        print("Cache hit for parse_resume!")
+        return copy.deepcopy(_parse_cache[cache_key])
+
     resume_text = extract_text_from_file(file_path)
     info = extract_info_with_cohere(resume_text)
     
@@ -224,6 +241,12 @@ def parse_resume(file_path: str, job_description: str) -> dict:
         "missing_skills": llm_eval.get("missing_skills", []),
         "strengths": llm_eval.get("strengths", [])
     }
+
+    _parse_cache[cache_key] = copy.deepcopy(result)
+    _parse_cache_keys.append(cache_key)
+    if len(_parse_cache_keys) > 5:
+        oldest = _parse_cache_keys.pop(0)
+        _parse_cache.pop(oldest, None)
 
     return result
 
