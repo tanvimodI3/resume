@@ -6,6 +6,9 @@ from sqlalchemy.exc import IntegrityError
 import shutil
 import os
 from typing import List
+from fastapi import Request
+from fastapi.responses import RedirectResponse
+from oauth import oauth
 
 import db
 from services import models, schemas, auth, parser_service
@@ -38,7 +41,13 @@ def signup(user: schemas.UserCreate, session: Session = Depends(db.get_db)):
         session.rollback()
         raise HTTPException(status_code=400, detail="Email already registered")
 
+from starlette.middleware.sessions import SessionMiddleware
+import os
 
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET")
+)
 
 @app.post("/auth/token", response_model=schemas.Token)
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(db.get_db)):

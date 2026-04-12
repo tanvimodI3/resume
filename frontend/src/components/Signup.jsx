@@ -37,6 +37,9 @@ function Signup() {
     }
   };
 
+  const handleGoogleSignup = () => {
+  window.location.href = "http://localhost:8000/auth/google";
+  };
   return (
     <>
       <Navbar />
@@ -93,6 +96,32 @@ function Signup() {
               {loading ? <><div className="spinner" /> Creating account…</> : 'Create Account →'}
             </button>
           </form>
+          <div style={{ margin: "1.5rem 0", textAlign: "center" }}>
+  <span style={{ color: "#888" }}>OR</span>
+</div>
+
+<button
+  onClick={handleGoogleSignup}
+  style={{
+    width: "100%",
+    padding: "10px",
+    borderRadius: "8px",
+    border: "1px solid #ddd",
+    background: "white",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "10px",
+    cursor: "pointer"
+  }}
+>
+  <img
+    src="https://developers.google.com/identity/images/g-logo.png"
+    width="20"
+    alt="google"
+  />
+  Sign up with Google
+</button>
 
           <div style={{ marginTop: '2rem', paddingTop: '1.75rem', borderTop: '1px solid var(--border-subtle)', textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: '0.78rem', fontWeight: 300, color: 'var(--text-muted)' }}>
             Already have an account?{' '}
