@@ -23,6 +23,8 @@ def verify_profiles_with_gemini(candidate_skills: List[str], profile_data: List[
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set in .env")
 
+    import time
+    
     client = genai.Client(api_key=api_key)
     
     prompt = f"""
@@ -50,21 +52,33 @@ def verify_profiles_with_gemini(candidate_skills: List[str], profile_data: List[
     Do not wrap the JSON in markdown formatting blocks. Just return the JSON object directly.
     """
     
-    try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-        )
-        text = response.text.strip()
-        if text.startswith("```json"):
-            text = text[7:]
-        elif text.startswith("```"):
-            text = text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
+    max_retries = 3
+    retry_delay = 2
+    
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+            )
+            text = response.text.strip()
+            if text.startswith("```json"):
+                text = text[7:]
+            elif text.startswith("```"):
+                text = text[3:]
+            if text.endswith("```"):
+                text = text[:-3]
+                
+            result = json.loads(text.strip())
+            return result
+        except Exception as e:
+            error_str = str(e)
+            if "503" in error_str or "Service Unavailable" in error_str or "overloaded" in error_str.lower():
+                if attempt < max_retries - 1:
+                    logger.warning(f"Gemini API busy (503). Retrying in {retry_delay}s... (Attempt {attempt + 1}/{max_retries})")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                    continue
             
-        result = json.loads(text.strip())
-        return result
-    except Exception as e:
-        logger.error(f"Gemini verification error: {str(e)}")
-        raise
+            logger.error(f"Gemini verification error: {error_str}")
+            raise

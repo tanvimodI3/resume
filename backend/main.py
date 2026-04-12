@@ -609,8 +609,16 @@ async def verify_profiles_endpoint(data: ProfileVerificationScoreRequest):
         result = verify_profiles_with_gemini(data.resume_skills, data.profile_data)
         return result
     except Exception as e:
-        logger.error(f"Error in verify-profiles: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error generating verification score")
+        error_msg = str(e)
+        logger.error(f"Error in verify-profiles: {error_msg}")
+        
+        if "503" in error_msg or "Service Unavailable" in error_msg or "high demand" in error_msg.lower():
+            raise HTTPException(
+                status_code=503, 
+                detail="Gemini AI is currently experiencing high demand. Please try again in a few moments."
+            )
+            
+        raise HTTPException(status_code=500, detail="Error generating verification score: " + error_msg)
 
 
 # ── Exception Handlers ────────────────────────────────────

@@ -66,14 +66,31 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
 
 
 def _generate(prompt: str) -> str:
-    """Call Gemini and return the text response."""
+    """Call Gemini and return the text response with retry logic for transient errors."""
     if _client is None:
         raise RuntimeError("Gemini client not configured — set GOOGLE_API_KEY in .env")
-    response = _client.models.generate_content(
-        model=MODEL_NAME,
-        contents=prompt,
-    )
-    return response.text.strip()
+    
+    import time
+    max_retries = 3
+    retry_delay = 2
+    
+    for attempt in range(max_retries):
+        try:
+            response = _client.models.generate_content(
+                model=MODEL_NAME,
+                contents=prompt,
+            )
+            return response.text.strip()
+        except Exception as e:
+            error_str = str(e)
+            if "503" in error_str or "Service Unavailable" in error_str or "overloaded" in error_str.lower():
+                if attempt < max_retries - 1:
+                    logger.warning(f"Gemini API busy (503). Retrying in {retry_delay}s... (Attempt {attempt + 1}/{max_retries})")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                    continue
+            logger.error(f"Gemini generation error: {error_str}")
+            raise
 
 
 # ─────────────────────────────────────────────────────────────────────────────

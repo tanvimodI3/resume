@@ -102,7 +102,10 @@ function ProfileVerification({ token, lastScanProfiles, lastScan }) {
            profile_data: results
         })
       });
-      if (!resp.ok) throw new Error("Failed to verify profiles");
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.detail || "Failed to verify profiles");
+      }
       const data = await resp.json();
       setVerificationData(data);
     } catch (e) {
