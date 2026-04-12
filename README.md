@@ -1,13 +1,14 @@
 # AI-Powered Resume
 
-## forreal.
+(for real.)
 
 ## Overview
 
 The AI-Powered Resume ATS is a full-stack, intelligent web application built to help technical recruiters, HR professionals, and administrators streamline their hiring process. By leveraging large language models (LLMs) and vector databases, the application compares candidate resumes against given job descriptions (JDs) and automatically generates match scores, identifies missing skills, and extracts essential candidate information.
 
 The system also verifies candidate profiles by analyzing real developer activity from platforms such as GitHub and LeetCode.
-(Built during a hackathon for the classic impressive… impressive… wait? maybe we should run some analysis.)
+
+(Built during a hackathon for the classic resume reading experience: impressive… impressive… wait? maybe we should run some analysis.)
 
 ---
 
@@ -17,19 +18,19 @@ The system also verifies candidate profiles by analyzing real developer activity
 
 Automatically extracts candidate details such as:
 
-* Name
-* Email
-* Phone
-* Experience
-* Profiles (LinkedIn, GitHub, LeetCode)
+- Name
+- Email
+- Phone
+- Experience
+- Profiles (LinkedIn, GitHub, LeetCode)
 
 from uploaded resumes.
 
 Supported formats:
 
-* PDF
-* DOCX
-* TXT
+- PDF
+- DOCX
+- TXT
 
 The parsing pipeline extracts the structured information and prepares it for downstream analysis.
 
@@ -41,9 +42,9 @@ Uses LangChain and Cohere's advanced LLMs to analyze the candidate resume agains
 
 The system:
 
-* Identifies candidate strengths
-* Highlights missing skills
-* Produces a summarized evaluation
+- Identifies candidate strengths
+- Highlights missing skills
+- Produces a summarized evaluation
 
 This helps recruiters quickly understand candidate fit beyond simple keyword matching.
 
@@ -65,15 +66,16 @@ The platform verifies developer claims by analyzing public profile data.
 
 If the resume includes profile links, the system fetches information from:
 
-* GitHub
-* LeetCode
-* LinkedIn
+- GitHub
+- LeetCode
+- LinkedIn
 
-GitHub repositories, languages, and activity are analyzed.
-LeetCode problem-solving statistics are retrieved.
+GitHub repositories, languages, and activity are analyzed.  
+LeetCode problem-solving statistics are retrieved.  
 LinkedIn profile data is extracted for additional validation.
 
-This information is then evaluated using Gemini to generate a **verification score**, comparing resume claims with actual activity (because “proficient in distributed systems” should ideally involve… distributing something).
+This information is then evaluated using Gemini to generate a **verification score**, comparing resume claims with actual activity  
+(because “proficient in distributed systems” should ideally involve… distributing something).
 
 ---
 
@@ -99,9 +101,9 @@ JWT-based secure signup and login flows for admins and recruiters.
 
 Authentication includes:
 
-* password hashing
-* JWT token generation
-* Google OAuth login support
+- password hashing
+- JWT token generation
+- Google OAuth login support
 
 Each user's evaluation history is isolated and securely stored.
 
@@ -111,31 +113,38 @@ Each user's evaluation history is isolated and securely stored.
 
 All previously scanned resumes and evaluations are stored in the PostgreSQL database.
 
-Recruiters can revisit previous candidate analyses at any time (because losing past evaluations would be… extremely awkward).
+Recruiters can revisit previous candidate analyses at any time  
+(because losing past evaluations would be… extremely awkward).
 
-To improve performance and reduce repeated heavy processing, Redis is used as a caching layer for frequently accessed evaluation data and intermediate processing states (because asking the AI the same question five times is impressive, but inefficient).
+To improve performance and reduce repeated heavy processing, Redis is used as a caching layer for frequently accessed evaluation data and intermediate processing states  
+(because asking the AI the same question five times is impressive, but inefficient).
 
 ---
 
 ## Tech Stack
 
-| Layer          | Technology                                           |
-| -------------- | ---------------------------------------------------- |
-| Backend        | FastAPI, Python                                      |
-| Database       | PostgreSQL, SQLAlchemy                               |
-| Caching        | Redis                                                |
-| AI / LLM       | Cohere (Command R+ and v3 embeddings), Google Gemini |
-| Vector Store   | ChromaDB                                             |
-| Frontend       | React + Vite                                         |
-| Auth           | OAuth2, JWT (python-jose, passlib)                   |
-| Infrastructure | Docker Compose                                       |
+| Layer | Technology |
+|------|-------------|
+| Backend | FastAPI, Python |
+| Database | PostgreSQL, SQLAlchemy |
+| Caching | Redis |
+| AI / LLM | Cohere (Command R+ and v3 embeddings), Google Gemini |
+| Vector Store | ChromaDB |
+| Frontend | React + Vite |
+| Auth | OAuth2, JWT (python-jose, passlib) |
+| Infrastructure | Docker Compose |
 
 ---
+
 ## Infrastructure (Docker)
 
-Docker Compose is used to run supporting services like **PostgreSQL** and **Redis** in containers, so the project can be set up quickly without manually installing or configuring these dependencies.
+Docker Compose is used to run supporting services like **PostgreSQL** and **Redis** in containers, allowing the project to be set up quickly without manually installing or configuring these dependencies.
 
 ---
+
+## Project Structure
+
+```
 
 resume/
 ├── docker-compose.yml
@@ -159,18 +168,19 @@ resume/
 │       ├── leetcode_fetcher.py
 │       └── linkedin_extraction.py
 └── frontend/
-    ├── index.html
-    ├── package.json
-    └── src/
-        ├── App.jsx
-        ├── index.css
-        └── components/
-            ├── Dashboard.jsx
-            ├── ResumeParser.jsx
-            ├── AIInterviewer.jsx
-            ├── ProfileVerification.jsx
-            ├── Login.jsx
-            └── Signup.jsx
+├── index.html
+├── package.json
+└── src/
+├── App.jsx
+├── index.css
+└── components/
+├── Dashboard.jsx
+├── ResumeParser.jsx
+├── AIInterviewer.jsx
+├── ProfileVerification.jsx
+├── Login.jsx
+└── Signup.jsx
+
 ```
 
 ---
@@ -179,10 +189,10 @@ resume/
 
 ### Prerequisites
 
-* Python 3.9+
-* Node.js
-* PostgreSQL
-* Docker and Docker Compose
+- Python 3.9+
+- Node.js
+- PostgreSQL
+- Docker and Docker Compose
 
 ---
 
@@ -191,6 +201,7 @@ resume/
 Create a `.env` file in the root directory.
 
 ```
+
 COHERE_API_KEY=your_cohere_api_key
 GEMINI_API_KEY=your_gemini_api_key
 
@@ -201,7 +212,8 @@ SESSION_SECRET=your_session_secret
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 
-FRONTEND_URL=http://localhost:5173
+FRONTEND_URL=[http://localhost:5173](http://localhost:5173)
+
 ```
 
 ---
@@ -209,7 +221,9 @@ FRONTEND_URL=http://localhost:5173
 ### Start Infrastructure
 
 ```
+
 docker-compose up -d
+
 ```
 
 This starts PostgreSQL and Redis locally.
@@ -219,28 +233,36 @@ This starts PostgreSQL and Redis locally.
 ### Backend Setup
 
 ```
+
 python -m venv venv
 
 source venv/bin/activate
+
 # Windows
+
 venv\Scripts\activate
 
 pip install -r requirements.txt
 
 cd backend
 uvicorn main:app --reload
+
 ```
 
 Backend runs at:
 
 ```
-http://localhost:8000
+
+[http://localhost:8000](http://localhost:8000)
+
 ```
 
 API documentation:
 
 ```
-http://localhost:8000/docs
+
+[http://localhost:8000/docs](http://localhost:8000/docs)
+
 ```
 
 ---
@@ -248,16 +270,22 @@ http://localhost:8000/docs
 ### Frontend Setup
 
 ```
+
 cd frontend
 npm install
 npm run dev
+
 ```
 
 Frontend runs at:
 
 ```
-http://localhost:5173
+
+[http://localhost:5173](http://localhost:5173)
+
 ```
 
 ---
+```
 
+---
