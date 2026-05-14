@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Navbar from './Navbar';
 import ThemeToggle from './ThemeToggle';
+import API_URL from '../api.js';
 
 function Signup() {
   const [name, setName] = useState('');
@@ -18,7 +19,7 @@ function Signup() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8000/auth/signup', {
+      const response = await fetch(`${API_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password })
@@ -38,7 +39,7 @@ function Signup() {
   };
 
   const handleGoogleSignup = () => {
-  window.location.href = "http://localhost:8000/auth/google";
+  window.location.href = `${API_URL}/auth/google`;
   };
   return (
     <>

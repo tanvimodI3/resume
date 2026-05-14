@@ -4,8 +4,9 @@ import {
   CheckCircle, XCircle, TrendingUp, RotateCcw, Send,
   Award, Brain, MessageSquare, Target, HelpCircle, Trophy
 } from 'lucide-react';
+import API_URL from '../api.js';
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─── Constants 
 
 const TOTAL_QUESTIONS = 5;
 
@@ -26,7 +27,7 @@ const getScoreLabel = (score) => {
   return 'Needs Improvement';
 };
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Sub-components 
 
 function ScoreCircle({ score, size = 'lg' }) {
   const color = getScoreColor(score);
@@ -99,7 +100,7 @@ function FeedbackCard({ evaluation, questionText }) {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main Component 
 
 function AIInterviewer({ token }) {
   // Stage: 'upload' | 'interview' | 'report'
@@ -132,7 +133,7 @@ function AIInterviewer({ token }) {
   const [report, setReport] = useState(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
-  // ── File Handling ─────────────────────────────────────────────────────────
+  // ── File Handling 
 
   const handleFileChange = (e) => {
     const f = e.target.files?.[0];
@@ -148,7 +149,7 @@ function AIInterviewer({ token }) {
     if (f) { setFile(f); setStartError(''); }
   };
 
-  // ── Start Interview ───────────────────────────────────────────────────────
+  // ── Start Interview
 
   const handleStartInterview = async () => {
     if (!file) { setStartError('Please upload a PDF resume first.'); return; }
@@ -159,7 +160,7 @@ function AIInterviewer({ token }) {
     formData.append('file', file);
 
     try {
-      const res = await fetch('http://localhost:8000/api/interview/start', {
+      const res = await fetch(`${API_URL}/api/interview/start`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -184,7 +185,7 @@ function AIInterviewer({ token }) {
     }
   };
 
-  // ── Voice Input ───────────────────────────────────────────────────────────
+  // ── Voice Input 
 
   const startListening = useCallback(() => {
     if (!voiceSupported) return;
@@ -211,7 +212,7 @@ function AIInterviewer({ token }) {
     setIsListening(false);
   }, []);
 
-  // ── Submit Answer ─────────────────────────────────────────────────────────
+  // ── Submit Answer 
 
   const handleSubmitAnswer = async () => {
     if (!answer.trim()) return;
@@ -220,7 +221,7 @@ function AIInterviewer({ token }) {
 
     const question = questions[currentQIdx];
     try {
-      const res = await fetch('http://localhost:8000/api/interview/evaluate', {
+      const res = await fetch(`${API_URL}/api/interview/evaluate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -255,7 +256,7 @@ function AIInterviewer({ token }) {
     }
   };
 
-  // ── Next Question / Finish ────────────────────────────────────────────────
+  // ── Next Question / Finish
 
   const handleNext = async () => {
     const nextIdx = currentQIdx + 1;
@@ -275,7 +276,7 @@ function AIInterviewer({ token }) {
     setStage('report');
 
     try {
-      const res = await fetch('http://localhost:8000/api/interview/report', {
+      const res = await fetch(`${API_URL}/api/interview/report`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -304,7 +305,7 @@ function AIInterviewer({ token }) {
     }
   };
 
-  // ── Reset ─────────────────────────────────────────────────────────────────
+  // ── Reset
 
   const handleReset = () => {
     setStage('upload');
@@ -324,7 +325,7 @@ function AIInterviewer({ token }) {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
 
-  // ── Stage 1: Upload ───────────────────────────────────────────────────────
+  // ── Stage 1: Upload 
   if (stage === 'upload') {
     return (
       <div className="parser-layout">
@@ -422,7 +423,7 @@ function AIInterviewer({ token }) {
     );
   }
 
-  // ── Stage 2: Interview ────────────────────────────────────────────────────
+  // ── Stage 2: Interview 
   if (stage === 'interview') {
     const currentQuestion = questions[currentQIdx];
     const progress = ((currentQIdx) / TOTAL_QUESTIONS) * 100;

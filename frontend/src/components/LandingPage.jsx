@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, FileText, Brain, BarChart3 } from 'lucide-react';
+import API_URL from '../api.js';
 
 /* ── Typing animation hook ────────────────────────────────────── */
 function useTyping(words, { typeSpeed = 120, deleteSpeed = 80, pause = 2400 } = {}) {
@@ -193,7 +194,7 @@ function AuthPanel({ visible, setToken, theme, toggleTheme }) {
         const body = new URLSearchParams();
         body.append('username', email);
         body.append('password', password);
-        const res = await fetch('http://localhost:8000/auth/token', {
+        const res = await fetch(`${API_URL}/auth/token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body,
@@ -203,7 +204,7 @@ function AuthPanel({ visible, setToken, theme, toggleTheme }) {
         setToken(data.access_token);
         navigate('/dashboard');
       } else {
-        const res = await fetch('http://localhost:8000/auth/signup', {
+        const res = await fetch(`${API_URL}/auth/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email, password }),
@@ -223,7 +224,7 @@ function AuthPanel({ visible, setToken, theme, toggleTheme }) {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:8000/auth/google";
+    window.location.href = `${API_URL}/auth/google`;
   };
 
   return (

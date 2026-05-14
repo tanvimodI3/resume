@@ -156,15 +156,16 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+import os
+_frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        _frontend_url,
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:5175",
         "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:5175",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -232,7 +233,8 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), ses
 
 @app.get("/auth/google", tags=["Auth"])
 async def google_login(request: Request):
-    redirect_uri = "http://localhost:8000/auth/google/callback"
+    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+    redirect_uri = f"{backend_url}/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 

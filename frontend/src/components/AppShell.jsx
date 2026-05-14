@@ -7,6 +7,7 @@ import ProfileVerification from './ProfileVerification';
 import AIInterviewer from './AIInterviewer';
 import ThemeToggle from './ThemeToggle';
 import { motion } from 'framer-motion';
+import API_URL from '../api.js';
 
 const NAV_ITEMS = [
   { id: 'resume-parser', icon: FileText, label: 'Resume Parser', available: true },
@@ -41,7 +42,7 @@ function AppShell({ token, logout }) {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/me', {
+      const res = await fetch(`${API_URL}/api/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setUser(await res.json());
@@ -50,7 +51,7 @@ function AppShell({ token, logout }) {
 
   const fetchHistory = async (newScanResult = null) => {
     try {
-      const res = await fetch('http://localhost:8000/api/history', {
+      const res = await fetch(`${API_URL}/api/history`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

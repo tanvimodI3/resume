@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Navbar from './Navbar';
 import ThemeToggle from './ThemeToggle';
+import API_URL from '../api.js';
 
 function Login({ setToken }) {
   const [email, setEmail] = useState('');
@@ -31,7 +32,7 @@ function Login({ setToken }) {
       formData.append('username', email);
       formData.append('password', password);
 
-      const response = await fetch('http://localhost:8000/auth/token', {
+      const response = await fetch(`${API_URL}/auth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData
@@ -50,7 +51,7 @@ function Login({ setToken }) {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:8000/auth/google";
+    window.location.href = `${API_URL}/auth/google`;
   };
 
   return (

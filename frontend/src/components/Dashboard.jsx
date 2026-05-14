@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, CheckCircle, AlertCircle, User, Briefcase, Mail, Phone, Link as LinkIcon, TrendingUp } from 'lucide-react';
+import API_URL from '../api.js';
 
 function Dashboard({ token, logout }) {
   const [file, setFile] = useState(null);
@@ -49,7 +50,7 @@ function Dashboard({ token, logout }) {
     formData.append('job_description', jobDescription);
 
     try {
-      const response = await fetch('http://localhost:8000/api/parse', {
+      const response = await fetch(`${API_URL}/api/parse`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

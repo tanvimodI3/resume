@@ -4,6 +4,7 @@ import {
   Star, GitFork, Users, BookOpen, Trophy, Target, TrendingUp,
   Loader2, AlertCircle, CheckCircle2, Search, Sparkles, Zap, MapPin
 } from 'lucide-react';
+import API_URL from '../api.js';
 
 const PLATFORM_ICONS = {
   github: GitBranch,
@@ -66,7 +67,7 @@ function ProfileVerification({ token, lastScanProfiles, lastScan }) {
     setResults(null);
 
     try {
-      const resp = await fetch('http://localhost:8000/api/analyze-profiles', {
+      const resp = await fetch(`${API_URL}/api/analyze-profiles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profiles: urls }),
@@ -88,18 +89,18 @@ function ProfileVerification({ token, lastScanProfiles, lastScan }) {
 
   const handleVerify = async () => {
     if (!lastScan || !lastScan.skills) {
-       setError("No resume skills found in the last scan. Please parse a resume first.");
-       return;
+      setError("No resume skills found in the last scan. Please parse a resume first.");
+      return;
     }
     setVerifying(true);
     setError('');
     try {
-      const resp = await fetch('http://localhost:8000/api/verify-profiles', {
+      const resp = await fetch(`${API_URL}/api/verify-profiles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
-           resume_skills: lastScan.skills.map(s => typeof s === 'string' ? s : s.skill),
-           profile_data: results
+          resume_skills: lastScan.skills.map(s => typeof s === 'string' ? s : s.skill),
+          profile_data: results
         })
       });
       if (!resp.ok) {
