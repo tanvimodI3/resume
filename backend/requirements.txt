@@ -11,10 +11,11 @@ python-dotenv
 Authlib
 docx2txt
 fastapi
-uvicorn
+uvicorn[standard]
+itsdangerous
 pydantic
 python-multipart
-psycopg2
+psycopg2-binary
 sqlalchemy
 python-jose[cryptography]
 passlib[bcrypt]

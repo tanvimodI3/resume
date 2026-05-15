@@ -23,7 +23,7 @@ import uvicorn
 from backend import db
 from backend.services import models, schemas, auth, parser_service, github_fetcher, leetcode_fetcher
 from backend.oauth import oauth
-from services.linkedin_extraction import get_full_candidate_profile
+from backend.services.linkedin_extraction import get_full_candidate_profile
 from langchain_cohere import CohereEmbeddings
 from backend.services import interviewer_service
 from backend.services import profile_service
