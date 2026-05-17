@@ -416,13 +416,16 @@ export default function LandingPage({ setToken }) {
     }
   }, [scrolled]);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     if (token) {
       setToken(token);
+      navigate('/dashboard', { replace: true });
     }
-  }, [setToken]);
+  }, [setToken, navigate]);
 
   return (
     <>
