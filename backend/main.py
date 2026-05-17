@@ -281,9 +281,11 @@ async def parse_resume_endpoint(
     current_user: models.User = Depends(auth.get_current_user),
     session: Session = Depends(db.get_db)
 ):
-    temp_dir = "/tmp/temp_uploads"
+    import uuid
+    temp_dir = "/tmp/temp_uploads"                         
     os.makedirs(temp_dir, exist_ok=True)
-    temp_path = os.path.join(temp_dir, file.filename)
+    safe_name = f"{uuid.uuid4()}_{os.path.basename(file.filename or 'upload')}" 
+    temp_path = os.path.join(temp_dir, safe_name)
 
     try:
         with open(temp_path, "wb") as buffer:
