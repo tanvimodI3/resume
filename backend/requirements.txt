@@ -2,6 +2,8 @@ langchain
 langchain-community
 langchain-text-splitters
 langchain-chroma
+pysqlite3-binary
+chromadb
 langchain-cohere
 langchain-google-genai
 google-generativeai

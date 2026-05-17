@@ -1,5 +1,15 @@
-import os
 import sys
+
+# ── SQLite fix for Chroma on Render (must be before any Chroma import) ───────
+# Chroma requires SQLite >= 3.35.0; Render's system SQLite is often older.
+# pysqlite3-binary ships a bundled modern SQLite that we swap in here.
+try:
+    __import__("pysqlite3")
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+except ImportError:
+    pass  # Local dev — system SQLite is new enough
+
+import os
 import logging
 import shutil
 from datetime import datetime, timedelta
@@ -284,7 +294,9 @@ async def parse_resume_endpoint(
         except HTTPException:
             raise
         except Exception as e:
-            raise HTTPException(status_code=503, detail=str(e))
+            import traceback
+            logger.error(f"[parse_resume ERROR] {type(e).__name__}: {e}\n{traceback.format_exc()}")
+            raise HTTPException(status_code=503, detail=f"{type(e).__name__}: {str(e)}")
 
         scan_result = models.ScanResult(
             user_id=current_user.id,
