@@ -281,7 +281,7 @@ async def parse_resume_endpoint(
     current_user: models.User = Depends(auth.get_current_user),
     session: Session = Depends(db.get_db)
 ):
-    temp_dir = "temp_uploads"
+    temp_dir = "/tmp/temp_uploads"
     os.makedirs(temp_dir, exist_ok=True)
     temp_path = os.path.join(temp_dir, file.filename)
 
