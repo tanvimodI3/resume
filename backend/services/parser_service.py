@@ -27,15 +27,20 @@ def _get_env_stripped(key: str) -> str:
         return value.strip().strip('"').strip("'")
     return ""
 
-_cohere = ChatCohere(
-    model="command-r-plus-08-2024",
-    cohere_api_key=_get_env_stripped("COHERE_API_KEY"),
-    temperature=0.1,
-)
+_cohere_client = None
+def _get_cohere_client():
+    global _cohere_client
+    if _cohere_client is None:
+        _cohere_client = ChatCohere(
+            model="command-r-plus-08-2024",
+            cohere_api_key=_get_env_stripped("COHERE_API_KEY"),
+            temperature=0.1,
+        )
+    return _cohere_client
 
 def _ask_cohere(prompt: str) -> str:
     try:
-        response = _cohere.invoke([HumanMessage(content=prompt)])
+        response = _get_cohere_client().invoke([HumanMessage(content=prompt)])
     except Exception as e:
         raise RuntimeError(f"Cohere API request failed: {e}")
     text = response.content.strip()
@@ -45,6 +50,18 @@ def _ask_cohere(prompt: str) -> str:
         text = text[:-3].strip()
     return text
 
+def extract_text_from_upload(file_bytes: bytes, filename: str) -> str:
+    """Takes raw bytes + filename, writes to /tmp, extracts text, cleans up."""
+    import uuid, tempfile
+    ext = (filename or "upload").lower().split('.')[-1]
+    tmp_path = f"/tmp/{uuid.uuid4()}.{ext}"
+    try:
+        with open(tmp_path, "wb") as f:
+            f.write(file_bytes)
+        return extract_text_from_file(tmp_path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 def extract_text_from_file(file_path: str) -> str:
     ext = file_path.lower().split('.')[-1]
