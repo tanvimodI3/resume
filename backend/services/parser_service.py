@@ -27,21 +27,27 @@ def _get_env_stripped(key: str) -> str:
         return value.strip().strip('"').strip("'")
     return ""
 
-_cohere_client = None
+_cohere_instance = None
+
 def _get_cohere_client():
-    global _cohere_client
-    if _cohere_client is None:
-        _cohere_client = ChatCohere(
+    global _cohere_instance
+    if _cohere_instance is None:
+        _cohere_instance = ChatCohere(
             model="command-r-plus-08-2024",
             cohere_api_key=_get_env_stripped("COHERE_API_KEY"),
             temperature=0.1,
         )
-    return _cohere_client
+    return _cohere_instance
+
+def _reset_cohere_client():
+    global _cohere_instance
+    _cohere_instance = None
 
 def _ask_cohere(prompt: str) -> str:
     try:
         response = _get_cohere_client().invoke([HumanMessage(content=prompt)])
     except Exception as e:
+        _reset_cohere_client() 
         raise RuntimeError(f"Cohere API request failed: {e}")
     text = response.content.strip()
     if text.startswith("```json"):
@@ -185,7 +191,6 @@ _parse_cache = {}
 _parse_cache_keys = []
 
 def parse_resume(file_path: str, job_description: str) -> dict:
-    """End-to-end pipeline with caching for the recent 5 requests."""
     with open(file_path, "rb") as f:
         file_bytes = f.read()
 
@@ -194,26 +199,35 @@ def parse_resume(file_path: str, job_description: str) -> dict:
     cache_key = f"{file_hash}_{jd_hash}"
 
     if cache_key in _parse_cache:
-        print("Cache hit for parse_resume!")
+        print("Cache hit!")
         return copy.deepcopy(_parse_cache[cache_key])
 
     resume_text = extract_text_from_file(file_path)
-
-    # Extract hyperlinks from PDF directly
     file_ext = file_path.lower().split('.')[-1]
     pdf_urls = extract_hyperlinks_from_pdf(file_path) if file_ext == 'pdf' else []
+    chunks = chunk_text(resume_text)
 
-    #Run 3 Cohere LLM calls IN PARALLEL instead of sequentially
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-        future_info  = executor.submit(extract_info_with_cohere, resume_text)
-        future_eval  = executor.submit(evaluate_with_cohere, resume_text, job_description)
+    # ✅ ALL 4 heavy calls run in parallel
+    def run_embeddings():
+        embedding_model = CohereEmbeddings(
+            model="embed-english-v3.0",
+            cohere_api_key=os.getenv("COHERE_API_KEY")
+        )
+        vs = build_vectorstore(chunks, embedding_model)
+        k = min(5, len(chunks)) if chunks else 1
+        return compute_embedding_score(vs, job_description, k=k)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        future_info   = executor.submit(extract_info_with_cohere, resume_text)
+        future_eval   = executor.submit(evaluate_with_cohere, resume_text, job_description)
         future_skills = executor.submit(extract_skills_with_cohere, resume_text)
-        
-        info      = future_info.result()
-        llm_eval  = future_eval.result()
-        skills    = future_skills.result()
+        future_embed  = executor.submit(run_embeddings)
 
-    # URL merging
+        info            = future_info.result(timeout=25)
+        llm_eval        = future_eval.result(timeout=25)
+        skills          = future_skills.result(timeout=25)
+        embedding_score = future_embed.result(timeout=25)
+
     cohere_urls = info.get("profiles", [])
     all_urls = cohere_urls + pdf_urls
 
@@ -223,36 +237,25 @@ def parse_resume(file_path: str, job_description: str) -> dict:
         url_lower = url.lower()
         return "." in url and ("http://" in url_lower or "https://" in url_lower)
 
-    profiles = list(set([url for url in all_urls if is_valid_url(url)]))
-
-    github_url = next((u for u in profiles if "github.com" in u.lower()), None)
+    profiles     = list(set([url for url in all_urls if is_valid_url(url)]))
+    github_url   = next((u for u in profiles if "github.com"   in u.lower()), None)
     leetcode_url = next((u for u in profiles if "leetcode.com" in u.lower()), None)
 
-    # Embeddings (must be separate - uses different model)
-    chunks = chunk_text(resume_text)
-    embedding_model = CohereEmbeddings(
-        model="embed-english-v3.0",
-        cohere_api_key=os.getenv("COHERE_API_KEY")
-    )
-    vectorstore = build_vectorstore(chunks, embedding_model)
-    k = min(5, len(chunks)) if chunks else 1
-    embedding_score = compute_embedding_score(vectorstore, job_description, k=k)
-
-    llm_score = float(llm_eval.get("match_percentage", 0))
+    llm_score  = float(llm_eval.get("match_percentage", 0))
     final_score = compute_final_score(embedding_score, llm_score)
 
     result = {
-        "name": info.get("name", "Not found"),
-        "email": info.get("email"),
-        "phone": info.get("phone"),
-        "experience": info.get("experience", "Unknown"),
-        "profiles": profiles,
-        "skills": skills,
-        "github_url": github_url,
-        "leetcode_url": leetcode_url,
-        "match_score": final_score,
+        "name":          info.get("name", "Not found"),
+        "email":         info.get("email"),
+        "phone":         info.get("phone"),
+        "experience":    info.get("experience", "Unknown"),
+        "profiles":      profiles,
+        "skills":        skills,
+        "github_url":    github_url,
+        "leetcode_url":  leetcode_url,
+        "match_score":   final_score,
         "missing_skills": llm_eval.get("missing_skills", []),
-        "strengths": llm_eval.get("strengths", [])
+        "strengths":     llm_eval.get("strengths", [])
     }
 
     _parse_cache[cache_key] = copy.deepcopy(result)
