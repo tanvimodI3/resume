@@ -1,17 +1,10 @@
 import sys
-
-# ── SQLite fix for Chroma on Render (must be before any Chroma import) ───────
-# Chroma requires SQLite >= 3.35.0; Render's system SQLite is often older.
-# pysqlite3-binary ships a bundled modern SQLite that we swap in here.
-try:
-    __import__("pysqlite3")
-    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
-except ImportError:
-    pass  # Local dev — system SQLite is new enough
-
 import os
 import logging
 import shutil
+import hashlib
+import copy
+import concurrent.futures
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List
@@ -23,18 +16,14 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, Field
+from functools import lru_cache
 
 import uvicorn
-
-
-
-
 
 from backend import db
 from backend.services import models, schemas, auth, parser_service, github_fetcher, leetcode_fetcher
 from backend.oauth import oauth
 from backend.services.linkedin_extraction import get_full_candidate_profile
-from langchain_cohere import CohereEmbeddings
 from backend.services import interviewer_service
 from backend.services import profile_service
 
@@ -100,54 +89,40 @@ class TextExtractionResponse(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────
-# INTERNAL HELPER
+# INTERNAL HELPER  (no ChromaDB — uses numpy in-memory)
 # ─────────────────────────────────────────────────────────
-
-import hashlib
-import copy
-from functools import lru_cache
 
 @lru_cache(maxsize=5)
 def _run_full_pipeline(resume_text: str, job_description: str) -> dict:
     try:
-        logger.info("[1/8] Extracting candidate info...")
-        info = parser_service.extract_info_with_cohere(resume_text)
-
-        logger.info("[2/8] Extracting skills...")
-        raw_skills = parser_service.extract_skills_with_cohere(resume_text)
-
-        logger.info("[3/8] Normalizing skills...")
-        normalized_skills = parser_service.normalize_skills_with_cohere(raw_skills)
-
-        logger.info("[4/8] Chunking resume text...")
         chunks = parser_service.chunk_text(resume_text)
+        k = min(5, len(chunks)) if chunks else 1
 
-        logger.info("[5/8] Generating embeddings...")
-        embedding_model = CohereEmbeddings(
-            model="embed-english-v3.0",
-            cohere_api_key=os.getenv("COHERE_API_KEY")
-        )
-        vectorstore = parser_service.build_vectorstore(chunks, embedding_model)
+        # Run all heavy calls in parallel — cuts wall time from ~20s to ~7s
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            f_info   = pool.submit(parser_service.extract_info_with_cohere, resume_text)
+            f_skills = pool.submit(parser_service.extract_skills_with_cohere, resume_text)
+            f_eval   = pool.submit(parser_service.evaluate_with_cohere, resume_text, job_description)
+            f_embed  = pool.submit(parser_service.compute_embedding_score_numpy, chunks, job_description, k)
 
-        logger.info("[6/8] Computing embedding score...")
-        k = min(5, len(chunks)) if len(chunks) > 0 else 1
-        embedding_score = parser_service.compute_embedding_score(vectorstore, job_description, k=k)
+            info            = f_info.result()
+            raw_skills      = f_skills.result()
+            llm_eval        = f_eval.result()
+            embedding_score = f_embed.result()
 
-        logger.info("[7/8] Running LLM evaluation...")
-        llm_eval = parser_service.evaluate_with_cohere(resume_text, job_description)
-        llm_score = float(llm_eval.get("match_percentage", 0))
-
-        logger.info("[8/8] Computing final score...")
+        # normalize_skills depends on raw_skills result so runs after
+        normalized_skills = parser_service.normalize_skills_with_cohere(raw_skills)
+        llm_score   = float(llm_eval.get("match_percentage", 0))
         final_score = parser_service.compute_final_score(embedding_score, llm_score)
 
         return {
-            "candidate_info": info,
+            "candidate_info":    info,
             "normalized_skills": normalized_skills,
-            "raw_skills": raw_skills,
-            "embedding_score": embedding_score,
-            "llm_score": llm_score,
-            "final_score": final_score,
-            "llm_eval": llm_eval
+            "raw_skills":        raw_skills,
+            "embedding_score":   embedding_score,
+            "llm_score":         llm_score,
+            "final_score":       final_score,
+            "llm_eval":          llm_eval
         }
     except Exception as e:
         logger.error(f"Pipeline error: {str(e)}")
@@ -166,7 +141,6 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-import os
 _frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
 app.add_middleware(
     CORSMiddleware,
@@ -180,6 +154,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+from starlette.middleware.sessions import SessionMiddleware
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET", "supersecretkey")
 )
 
 models.Base.metadata.create_all(bind=db.engine)
@@ -219,13 +199,6 @@ def signup(user: schemas.UserCreate, session: Session = Depends(db.get_db)):
         session.rollback()
         raise HTTPException(status_code=400, detail="Email already registered")
 
-from starlette.middleware.sessions import SessionMiddleware
-import os
-
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=os.getenv("SESSION_SECRET", "supersecretkey")
-)
 
 @app.post("/auth/token", response_model=schemas.Token, tags=["Auth"])
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(db.get_db)):
@@ -282,9 +255,9 @@ async def parse_resume_endpoint(
     session: Session = Depends(db.get_db)
 ):
     import uuid
-    temp_dir = "/tmp/temp_uploads"                         
+    temp_dir = "/tmp/temp_uploads"
     os.makedirs(temp_dir, exist_ok=True)
-    safe_name = f"{uuid.uuid4()}_{os.path.basename(file.filename or 'upload')}" 
+    safe_name = f"{uuid.uuid4()}_{os.path.basename(file.filename or 'upload')}"
     temp_path = os.path.join(temp_dir, safe_name)
 
     try:
@@ -565,7 +538,8 @@ async def batch_match_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error in batch matching")
-    
+
+
 @app.get("/candidate/linkedin")
 def fetch_candidate(linkedin_url: str):
     data = get_full_candidate_profile(linkedin_url)
@@ -588,16 +562,10 @@ class ProfileAnalysisRequest(BaseModel):
 
 @app.post("/api/analyze-profiles", tags=["Profile Verification"])
 async def analyze_profiles_endpoint(data: ProfileAnalysisRequest):
-    """
-    Analyze a list of profile URLs (GitHub, LeetCode, etc.).
-    Returns detailed analysis for GitHub and LeetCode profiles,
-    and classified links for other platforms.
-    """
     try:
         if not data.profiles or len(data.profiles) == 0:
             raise ValueError("At least one profile URL is required")
 
-        # Filter out empty strings
         urls = [u.strip() for u in data.profiles if u and u.strip()]
         if not urls:
             raise ValueError("No valid URLs provided")
@@ -627,13 +595,13 @@ async def verify_profiles_endpoint(data: ProfileVerificationScoreRequest):
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Error in verify-profiles: {error_msg}")
-        
+
         if "503" in error_msg or "Service Unavailable" in error_msg or "high demand" in error_msg.lower():
             raise HTTPException(
-                status_code=503, 
+                status_code=503,
                 detail="Gemini AI is currently experiencing high demand. Please try again in a few moments."
             )
-            
+
         raise HTTPException(status_code=500, detail="Error generating verification score: " + error_msg)
 
 

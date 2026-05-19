@@ -1,10 +1,3 @@
-import sys
-try:
-    __import__("pysqlite3")
-    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
-except ImportError:
-    pass
-
 import os
 import re
 import json
@@ -52,7 +45,7 @@ def _ask_cohere(prompt: str) -> str:
     try:
         response = _get_cohere_client().invoke([HumanMessage(content=prompt)])
     except Exception as e:
-        _cohere_client = None  # reset on failure so next call retries fresh
+        _cohere_client = None  # reset so next call rebuilds a fresh client
         raise RuntimeError(f"Cohere API request failed: {e}")
     text = response.content.strip()
     if text.startswith("```json"):
@@ -237,7 +230,6 @@ def chunk_text(text: str) -> list:
 
 
 def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
-    """Cosine similarity between two 1-D vectors."""
     denom = np.linalg.norm(a) * np.linalg.norm(b)
     if denom == 0:
         return 0.0
@@ -246,8 +238,8 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 
 def compute_embedding_score_numpy(chunks: list, jd_text: str, k: int = 5) -> float:
     """
-    Embed resume chunks + JD with Cohere, then compute cosine similarity in-memory.
-    Completely replaces ChromaDB — no sqlite3 dependency, no disk writes.
+    Embed resume chunks + JD with Cohere, compute cosine similarity in-memory.
+    No ChromaDB — no sqlite3 dependency, no disk writes.
     """
     if not chunks:
         return 0.0
@@ -258,24 +250,19 @@ def compute_embedding_score_numpy(chunks: list, jd_text: str, k: int = 5) -> flo
         cohere_api_key=api_key,
     )
 
-    # Embed all chunks + JD in two calls (Cohere supports batch)
     try:
-        chunk_vecs = embed_model.embed_documents(chunks)          # list[list[float]]
-        jd_vec = embed_model.embed_query(jd_text)                 # list[float]
+        chunk_vecs = embed_model.embed_documents(chunks)
+        jd_vec     = embed_model.embed_query(jd_text)
     except Exception as e:
         print(f"Embedding error (returning 0): {e}")
         return 0.0
 
-    chunk_arr = np.array(chunk_vecs, dtype=np.float32)            # (N, D)
-    jd_arr = np.array(jd_vec, dtype=np.float32)                   # (D,)
+    chunk_arr = np.array(chunk_vecs, dtype=np.float32)
+    jd_arr    = np.array(jd_vec,    dtype=np.float32)
 
-    # Cosine similarities for every chunk
-    sims = [_cosine_similarity(chunk_arr[i], jd_arr) for i in range(len(chunk_arr))]
-
-    # Top-k average, mapped 0-100
+    sims  = [_cosine_similarity(chunk_arr[i], jd_arr) for i in range(len(chunk_arr))]
     top_k = sorted(sims, reverse=True)[:k]
-    avg_sim = float(np.mean(top_k))                               # -1 … 1
-    score = max(0.0, avg_sim) * 100                               # 0 … 100
+    score = max(0.0, float(np.mean(top_k))) * 100
     return round(score, 2)
 
 
@@ -295,18 +282,17 @@ def parse_resume(file_path: str, job_description: str) -> dict:
     """
     End-to-end pipeline:
     1. Extract text from file
-    2. Run 3 Cohere LLM calls IN PARALLEL (info, evaluate, skills)
-    3. Compute embedding score with numpy (no ChromaDB)
-    4. Return merged result
+    2. Run 3 Cohere LLM calls + embedding IN PARALLEL
+    3. Return merged result
 
-    Recent 5 results are cached in-memory.
+    Last 5 results cached in-memory.
     """
     # ── Cache check ────────────────────────────────────────────────────────────
     with open(file_path, "rb") as f:
         file_bytes = f.read()
 
     file_hash = hashlib.sha256(file_bytes).hexdigest()
-    jd_hash = hashlib.sha256(job_description.encode("utf-8")).hexdigest()
+    jd_hash   = hashlib.sha256(job_description.encode("utf-8")).hexdigest()
     cache_key = f"{file_hash}_{jd_hash}"
 
     if cache_key in _parse_cache:
@@ -326,21 +312,21 @@ def parse_resume(file_path: str, job_description: str) -> dict:
     chunks = chunk_text(resume_text)
     k = min(5, len(chunks)) if chunks else 1
 
-    # ── Run LLM calls + embedding in parallel ─────────────────────────────────
+    # ── Run all heavy calls in parallel ───────────────────────────────────────
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        f_info     = pool.submit(extract_info_with_cohere, resume_text)
-        f_eval     = pool.submit(evaluate_with_cohere, resume_text, job_description)
-        f_skills   = pool.submit(extract_skills_with_cohere, resume_text)
-        f_embed    = pool.submit(compute_embedding_score_numpy, chunks, job_description, k)
+        f_info   = pool.submit(extract_info_with_cohere, resume_text)
+        f_eval   = pool.submit(evaluate_with_cohere, resume_text, job_description)
+        f_skills = pool.submit(extract_skills_with_cohere, resume_text)
+        f_embed  = pool.submit(compute_embedding_score_numpy, chunks, job_description, k)
 
-        info           = f_info.result()
-        llm_eval       = f_eval.result()
-        skills         = f_skills.result()
+        info            = f_info.result()
+        llm_eval        = f_eval.result()
+        skills          = f_skills.result()
         embedding_score = f_embed.result()
 
     # ── Merge URLs ─────────────────────────────────────────────────────────────
     cohere_urls = info.get("profiles", [])
-    all_urls = cohere_urls + pdf_urls
+    all_urls    = cohere_urls + pdf_urls
 
     def is_valid_url(url):
         if not isinstance(url, str):
@@ -348,28 +334,27 @@ def parse_resume(file_path: str, job_description: str) -> dict:
         url_lower = url.lower()
         return "." in url and ("http://" in url_lower or "https://" in url_lower)
 
-    profiles = list(set(url for url in all_urls if is_valid_url(url)))
-
-    github_url = next((u for u in profiles if "github.com" in u.lower()), None)
+    profiles     = list(set(url for url in all_urls if is_valid_url(url)))
+    github_url   = next((u for u in profiles if "github.com"   in u.lower()), None)
     leetcode_url = next((u for u in profiles if "leetcode.com" in u.lower()), None)
 
-    # ── Compute scores ─────────────────────────────────────────────────────────
-    llm_score  = float(llm_eval.get("match_percentage", 0))
+    # ── Scores ─────────────────────────────────────────────────────────────────
+    llm_score   = float(llm_eval.get("match_percentage", 0))
     final_score = compute_final_score(embedding_score, llm_score)
 
     # ── Build result ───────────────────────────────────────────────────────────
     result = {
-        "name":          info.get("name", "Not found"),
-        "email":         info.get("email"),
-        "phone":         info.get("phone"),
-        "experience":    info.get("experience", "Unknown"),
-        "profiles":      profiles,
-        "skills":        skills,
-        "github_url":    github_url,
-        "leetcode_url":  leetcode_url,
-        "match_score":   final_score,
+        "name":           info.get("name", "Not found"),
+        "email":          info.get("email"),
+        "phone":          info.get("phone"),
+        "experience":     info.get("experience", "Unknown"),
+        "profiles":       profiles,
+        "skills":         skills,
+        "github_url":     github_url,
+        "leetcode_url":   leetcode_url,
+        "match_score":    final_score,
         "missing_skills": llm_eval.get("missing_skills", []),
-        "strengths":     llm_eval.get("strengths", []),
+        "strengths":      llm_eval.get("strengths", []),
     }
 
     # ── Cache (keep last 5) ────────────────────────────────────────────────────
