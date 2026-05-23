@@ -60,11 +60,11 @@ def get_job_detail(linkedin_url: str):
 def get_full_candidate_profile(linkedin_url: str):
     return {
         "profile_detail": get_profile_detail(linkedin_url),
-        "contact_info": get_contact_info(linkedin_url),
+        # "contact_info": get_contact_info(linkedin_url),
         "educations": get_educations(linkedin_url),
         "experiences": get_experiences(linkedin_url),
         "skills": get_skills(linkedin_url),
-        "certifications": get_certifications(linkedin_url),
-        "projects": get_projects(linkedin_url),
-        "job_detail": get_job_detail(linkedin_url),
+        # "certifications": get_certifications(linkedin_url),
+        # "projects": get_projects(linkedin_url),
+        # "job_detail": get_job_detail(linkedin_url),
     }
