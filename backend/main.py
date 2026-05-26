@@ -164,12 +164,7 @@ app.add_middleware(
 
 models.Base.metadata.create_all(bind=db.engine)
 
-
-# ─────────────────────────────────────────────────────────
-# ENDPOINTS
-# ─────────────────────────────────────────────────────────
-
-@app.get("/", tags=["Info"])
+@app.api_route("/", methods=["GET", "HEAD"], tags=["Info"])
 async def root():
     return {
         "name": "ATS Resume-Job Matcher API",

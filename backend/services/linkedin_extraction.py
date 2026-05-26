@@ -1,6 +1,5 @@
 import requests
 import os
-
 RAPIDAPI_HOST = "linkedin-data-api.p.rapidapi.com"
 
 def _get_headers():
